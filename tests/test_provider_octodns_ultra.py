@@ -65,7 +65,7 @@ class TestUltraProvider(TestCase):
 
     def test_get_zones(self):
         provider = _get_provider()
-        path = "/v2/zones"
+        path = "/v3/zones"
 
         # Test authorization issue
         with requests_mock() as mock:
@@ -90,11 +90,7 @@ class TestUltraProvider(TestCase):
 
         with requests_mock() as mock:
             payload = {
-                "resultInfo": {
-                    "totalCount": 1,
-                    "offset": 0,
-                    "returnedCount": 1
-                },
+                "cursorInfo": {},
                 "zones": [
                     {
                         "properties": {
@@ -122,17 +118,15 @@ class TestUltraProvider(TestCase):
         # Test different paging behavior
         provider._zones = None
         with requests_mock() as mock:
-            mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
-                     'offset=0', status_code=200,
-                     json={"resultInfo": {"totalCount": 15,
-                                          "offset": 0,
-                                          "returnedCount": 10},
+            mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY',
+                     status_code=200,
+                     json={"cursorInfo": {"next": "em9uZS50ZXN0LjpORVhUCg==",
+                                          "last": "fjpMQVNU"},
                            "zones": []})
             mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY'
-                     '&offset=10', status_code=200,
-                     json={"resultInfo": {"totalCount": 15,
-                                          "offset": 10,
-                                          "returnedCount": 5},
+                     '&cursor=em9uZS50ZXN0LjpORVhUCg==', status_code=200,
+                     json={"cursorInfo": {"first": "OkZJUlNU",
+                                          "previous": "OlBSRVZJT1VT"},
                            "zones": []})
             zones = provider.zones
             self.assertEqual(2, mock.call_count)
@@ -188,10 +182,9 @@ class TestUltraProvider(TestCase):
     def test_zone_records(self):
         provider = _get_provider()
         zone_payload = {
-            "resultInfo": {"totalCount": 1,
-                           "offset": 0,
-                           "returnedCount": 1},
-            "zones": [{"properties": {"name": "octodns1.test."}}]}
+            "cursorInfo": {},
+            "zones": [{"properties": {"name": "octodns1.test."}}]
+        }
 
         records_payload = {
             "zoneName": "octodns1.test.",
@@ -220,11 +213,11 @@ class TestUltraProvider(TestCase):
             }
         }
 
-        zone_path = '/v2/zones'
+        zone_path = '/v3/zones'
         rec_path = '/v2/zones/octodns1.test./rrsets'
         with requests_mock() as mock:
-            mock.get(f'{self.host}{zone_path}?limit=100&q=zone_type%3APRIMARY&'
-                     'offset=0', status_code=200, json=zone_payload)
+            mock.get(f'{self.host}{zone_path}?limit=100&q=zone_type%3APRIMARY',
+                     status_code=200, json=zone_payload)
             mock.get(f'{self.host}{rec_path}?offset=0&limit=100',
                      status_code=200, json=records_payload)
 
@@ -255,14 +248,15 @@ class TestUltraProvider(TestCase):
 
         # Test zones with data
         provider._zones = None
-        path = '/v2/zones'
+        path = '/v3/zones'
         with requests_mock() as mock:
             with open('tests/fixtures/ultra-zones-page-1.json') as fh:
-                mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
-                         'offset=0', status_code=200, text=fh.read())
+                mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY',
+                         status_code=200, text=fh.read())
             with open('tests/fixtures/ultra-zones-page-2.json') as fh:
                 mock.get(f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
-                         'offset=10', status_code=200, text=fh.read())
+                         'cursor=b2N0b2RuczE4LnRlc3QuOk5FWFQK',
+                         status_code=200, text=fh.read())
             with open('tests/fixtures/ultra-records-page-1.json') as fh:
                 rec_path = '/v2/zones/octodns1.test./rrsets'
                 mock.get(f'{self.host}{rec_path}?offset=0&limit=100',

@@ -26,6 +26,7 @@ class UltraNoZonesExistException(UltraClientException):
     This is not an error exactly yet ultra treats this scenario as though a
     failure has occurred.
     '''
+
     def __init__(self, data):
         super(UltraNoZonesExistException, self).__init__('NoZonesExist')
 
@@ -34,6 +35,7 @@ class UltraClientUnauthorized(UltraClientException):
     '''
     Exception for invalid credentials.
     '''
+
     def __init__(self):
         super(UltraClientUnauthorized, self).__init__('Unauthorized')
 
@@ -151,9 +153,9 @@ class UltraProvider(BaseProvider):
         if self._zones is None:
             limit = self.ZONE_REQUEST_LIMIT
             zones = []
+            data = {'limit': limit, 'q': 'zone_type:PRIMARY'}
             paging = True
             while paging:
-                data = {'limit': limit, 'q': 'zone_type:PRIMARY'}
                 try:
                     resp = self._get('/v3/zones', params=data)
                 except UltraNoZonesExistException:
