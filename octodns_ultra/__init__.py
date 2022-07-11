@@ -169,27 +169,21 @@ class UltraProvider(BaseProvider):
     @property
     def zones(self):
         if self._zones is None:
-            offset = 0
             limit = self.ZONE_REQUEST_LIMIT
             zones = []
+            data = {'limit': limit, 'q': 'zone_type:PRIMARY'}
             paging = True
             while paging:
-                data = {
-                    'limit': limit,
-                    'q': 'zone_type:PRIMARY',
-                    'offset': offset,
-                }
                 try:
-                    resp = self._get('/v2/zones', params=data)
+                    resp = self._get('/v3/zones', params=data)
                 except UltraNoZonesExistException:
                     paging = False
                     continue
 
                 zones.extend(resp['zones'])
-                info = resp['resultInfo']
 
-                if info['offset'] + info['returnedCount'] < info['totalCount']:
-                    offset += info['returnedCount']
+                if 'next' in resp['cursorInfo']:
+                    data['cursor'] = resp['cursorInfo']['next']
                 else:
                     paging = False
 

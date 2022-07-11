@@ -5,10 +5,9 @@
         "reverse": false,
         "limit": 10
     },
-    "resultInfo": {
-        "totalCount": 20,
-        "offset": 10,
-        "returnedCount": 10
+    "cursorInfo": {
+        "previous": "b2N0b2RuczE5LnRlc3QuOlBSRVZJT1VT",
+        "first": "OkZJUlNU"
     },
     "zones": [
         {
