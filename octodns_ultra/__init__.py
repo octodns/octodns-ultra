@@ -17,6 +17,7 @@ class UltraClientException(ProviderException):
     '''
     Base Ultra exception type
     '''
+
     pass
 
 
@@ -74,17 +75,26 @@ class UltraProvider(BaseProvider):
     TIMEOUT = 5
     ZONE_REQUEST_LIMIT = 100
 
-    def _request(self, method, path, params=None,
-                 data=None, json=None, json_response=True):
+    def _request(
+        self,
+        method,
+        path,
+        params=None,
+        data=None,
+        json=None,
+        json_response=True,
+    ):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = f'{self._base_uri}{path}'
-        resp = self._sess.request(method,
-                                  url,
-                                  params=params,
-                                  data=data,
-                                  json=json,
-                                  timeout=self._timeout)
+        resp = self._sess.request(
+            method,
+            url,
+            params=params,
+            data=data,
+            json=json,
+            timeout=self._timeout,
+        )
         self.log.debug('_request:   status=%d', resp.status_code)
 
         if resp.status_code == 401:
@@ -94,8 +104,11 @@ class UltraProvider(BaseProvider):
             payload = resp.json()
 
             # Expected return value when no zones exist in an account
-            if resp.status_code == 404 and len(payload) == 1 and \
-               payload[0]['errorCode'] == 70002:
+            if (
+                resp.status_code == 404
+                and len(payload) == 1
+                and payload[0]['errorCode'] == 70002
+            ):
                 raise UltraNoZonesExistException(resp)
         else:
             payload = resp.text
@@ -122,19 +135,24 @@ class UltraProvider(BaseProvider):
         data = {
             'grant_type': 'password',
             'username': username,
-            'password': password
+            'password': password,
         }
 
         resp = self._post(path, data=data)
-        self._sess.headers.update({
-            'Authorization': f'Bearer {resp["access_token"]}',
-        })
+        self._sess.headers.update(
+            {'Authorization': f'Bearer {resp["access_token"]}'}
+        )
 
-    def __init__(self, id, account, username, password, timeout=TIMEOUT,
-                 *args, **kwargs):
+    def __init__(
+        self, id, account, username, password, timeout=TIMEOUT, *args, **kwargs
+    ):
         self.log = getLogger(f'UltraProvider[{id}]')
-        self.log.debug('__init__: id=%s, account=%s, username=%s, '
-                       'password=***', id, account, username)
+        self.log.debug(
+            '__init__: id=%s, account=%s, username=%s, ' 'password=***',
+            id,
+            account,
+            username,
+        )
 
         super(UltraProvider, self).__init__(id, *args, **kwargs)
 
@@ -213,31 +231,39 @@ class UltraProvider(BaseProvider):
         return {
             'type': _type,
             'ttl': records['ttl'],
-            'values': [{'flags': x.split()[0],
-                        'tag': x.split()[1],
-                        'value': x.split()[2].strip('"')}
-                       for x in records['rdata']]
+            'values': [
+                {
+                    'flags': x.split()[0],
+                    'tag': x.split()[1],
+                    'value': x.split()[2].strip('"'),
+                }
+                for x in records['rdata']
+            ],
         }
 
     def _data_for_MX(self, _type, records):
         return {
             'type': _type,
             'ttl': records['ttl'],
-            'values': [{'preference': x.split()[0],
-                        'exchange': x.split()[1]}
-                       for x in records['rdata']]
+            'values': [
+                {'preference': x.split()[0], 'exchange': x.split()[1]}
+                for x in records['rdata']
+            ],
         }
 
     def _data_for_SRV(self, _type, records):
         return {
             'type': _type,
             'ttl': records['ttl'],
-            'values': [{
-                'priority': x.split()[0],
-                'weight': x.split()[1],
-                'port': x.split()[2],
-                'target': x.split()[3],
-            } for x in records['rdata']]
+            'values': [
+                {
+                    'priority': x.split()[0],
+                    'weight': x.split()[1],
+                    'port': x.split()[2],
+                    'target': x.split()[3],
+                }
+                for x in records['rdata']
+            ],
         }
 
     def zone_records(self, zone):
@@ -251,8 +277,9 @@ class UltraProvider(BaseProvider):
             limit = 100
             paging = True
             while paging:
-                resp = self._get(path,
-                                 params={'offset': offset, 'limit': limit})
+                resp = self._get(
+                    path, params={'offset': offset, 'limit': limit}
+                )
                 records.extend(resp['rrSets'])
                 info = resp['resultInfo']
 
@@ -271,8 +298,12 @@ class UltraProvider(BaseProvider):
         return record
 
     def populate(self, zone, target=False, lenient=False):
-        self.log.debug('populate: name=%s, target=%s, lenient=%s', zone.name,
-                       target, lenient)
+        self.log.debug(
+            'populate: name=%s, target=%s, lenient=%s',
+            zone.name,
+            target,
+            lenient,
+        )
 
         exists = False
         before = len(zone.records)
@@ -287,36 +318,47 @@ class UltraProvider(BaseProvider):
                 try:
                     _type = self.RECORDS_TO_TYPE[record['rrtype']]
                 except KeyError:
-                    self.log.warning('populate: ignoring record with '
-                                     'unsupported rrtype, %s  %s',
-                                     name, record['rrtype'])
+                    self.log.warning(
+                        'populate: ignoring record with '
+                        'unsupported rrtype, %s  %s',
+                        name,
+                        record['rrtype'],
+                    )
                     continue
                 values[name][_type] = record
 
             for name, types in values.items():
                 for _type, records in types.items():
-                    record = self._record_for(zone, name, _type, records,
-                                              lenient)
+                    record = self._record_for(
+                        zone, name, _type, records, lenient
+                    )
                     zone.add_record(record, lenient=lenient)
 
-        self.log.info('populate:   found %s records, exists=%s',
-                      len(zone.records) - before, exists)
+        self.log.info(
+            'populate:   found %s records, exists=%s',
+            len(zone.records) - before,
+            exists,
+        )
         return exists
 
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
-        self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
-                       len(changes))
+        self.log.debug(
+            '_apply: zone=%s, len(changes)=%d', desired.name, len(changes)
+        )
 
         name = desired.name
         if name not in self.zones:
             self.log.debug('_apply:   no matching zone, creating')
-            data = {'properties': {'name': name,
-                                   'accountName': self._account,
-                                   'type': 'PRIMARY'},
-                    'primaryCreateInfo': {
-                        'createType': 'NEW'}}
+            data = {
+                'properties': {
+                    'name': name,
+                    'accountName': self._account,
+                    'type': 'PRIMARY',
+                },
+                'primaryCreateInfo': {'createType': 'NEW'},
+            }
             self._post('/v2/zones', json=data)
             self.zones.append(name)
             self._zone_records[name] = {}
@@ -334,26 +376,19 @@ class UltraProvider(BaseProvider):
                 'ttl': record.ttl,
                 'rdata': record.values,
                 'profile': {
-                    '@context':
-                        'http://schemas.ultradns.com/RDPool.jsonschema',
+                    '@context': 'http://schemas.ultradns.com/RDPool.jsonschema',
                     'order': 'FIXED',
-                    'description': record.fqdn
-                }
+                    'description': record.fqdn,
+                },
             }
 
-        return {
-            'ttl': record.ttl,
-            'rdata': record.values
-        }
+        return {'ttl': record.ttl, 'rdata': record.values}
 
     _contents_for_A = _contents_for_multiple_resource_distribution
     _contents_for_AAAA = _contents_for_multiple_resource_distribution
 
     def _contents_for_multiple(self, record):
-        return {
-            'ttl': record.ttl,
-            'rdata': record.values
-        }
+        return {'ttl': record.ttl, 'rdata': record.values}
 
     _contents_for_NS = _contents_for_multiple
     _contents_for_SPF = _contents_for_multiple
@@ -361,14 +396,11 @@ class UltraProvider(BaseProvider):
     def _contents_for_TXT(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': [v.replace('\\;', ';') for v in record.values]
+            'rdata': [v.replace('\\;', ';') for v in record.values],
         }
 
     def _contents_for_CNAME(self, record):
-        return {
-            'ttl': record.ttl,
-            'rdata': [record.value]
-        }
+        return {'ttl': record.ttl, 'rdata': [record.value]}
 
     _contents_for_PTR = _contents_for_CNAME
     _contents_for_ALIAS = _contents_for_CNAME
@@ -376,20 +408,22 @@ class UltraProvider(BaseProvider):
     def _contents_for_SRV(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': [f'{x.priority} {x.weight} {x.port} {x.target}'
-                      for x in record.values]
+            'rdata': [
+                f'{x.priority} {x.weight} {x.port} {x.target}'
+                for x in record.values
+            ],
         }
 
     def _contents_for_CAA(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': [f'{x.flags} {x.tag} {x.value}' for x in record.values]
+            'rdata': [f'{x.flags} {x.tag} {x.value}' for x in record.values],
         }
 
     def _contents_for_MX(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': [f'{x.preference} {x.exchange}' for x in record.values]
+            'rdata': [f'{x.preference} {x.exchange}' for x in record.values],
         }
 
     def _gen_data(self, record):
@@ -407,20 +441,24 @@ class UltraProvider(BaseProvider):
 
     def _apply_Create(self, change):
         new = change.new
-        self.log.debug("_apply_Create:  name=%s type=%s ttl=%s",
-                       new.name,
-                       new._type,
-                       new.ttl)
+        self.log.debug(
+            "_apply_Create:  name=%s type=%s ttl=%s",
+            new.name,
+            new._type,
+            new.ttl,
+        )
 
         path, content = self._gen_data(new)
         self._post(path, json=content)
 
     def _apply_Update(self, change):
         new = change.new
-        self.log.debug("_apply_Update:  name=%s type=%s ttl=%s",
-                       new.name,
-                       new._type,
-                       new.ttl)
+        self.log.debug(
+            "_apply_Update:  name=%s type=%s ttl=%s",
+            new.name,
+            new._type,
+            new.ttl,
+        )
 
         path, content = self._gen_data(new)
         self.log.debug(path)
@@ -429,7 +467,7 @@ class UltraProvider(BaseProvider):
 
     def _remove_prefix(self, text, prefix):
         if text.startswith(prefix):
-            return text[len(prefix):]
+            return text[len(prefix) :]
         return text
 
     def _apply_Delete(self, change):
@@ -438,16 +476,21 @@ class UltraProvider(BaseProvider):
         for record in self.zone_records(existing.zone):
             if record['rrtype'] == 'SOA (6)':
                 continue
-            if existing.fqdn == record['ownerName'] and \
-               existing._type == self.RECORDS_TO_TYPE[record['rrtype']]:
-                zone_name = self._remove_prefix(existing.fqdn,
-                                                existing.name + '.')
+            if (
+                existing.fqdn == record['ownerName']
+                and existing._type == self.RECORDS_TO_TYPE[record['rrtype']]
+            ):
+                zone_name = self._remove_prefix(
+                    existing.fqdn, existing.name + '.'
+                )
 
                 # UltraDNS treats the `APEXALIAS` type as the octodns `ALIAS`.
                 existing_type = existing._type
                 if existing_type == "ALIAS":
                     existing_type = "APEXALIAS"
 
-                path = f'/v2/zones/{zone_name}/rrsets/{existing_type}/' + \
-                    existing.fqdn
+                path = (
+                    f'/v2/zones/{zone_name}/rrsets/{existing_type}/'
+                    + existing.fqdn
+                )
                 self._delete(path, json_response=False)
