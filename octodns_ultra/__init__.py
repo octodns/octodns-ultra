@@ -29,7 +29,7 @@ class UltraNoZonesExistException(UltraClientException):
     '''
 
     def __init__(self, data):
-        super(UltraNoZonesExistException, self).__init__('NoZonesExist')
+        super().__init__('NoZonesExist')
 
 
 class UltraClientUnauthorized(UltraClientException):
@@ -38,7 +38,7 @@ class UltraClientUnauthorized(UltraClientException):
     '''
 
     def __init__(self):
-        super(UltraClientUnauthorized, self).__init__('Unauthorized')
+        super().__init__('Unauthorized')
 
 
 class UltraProvider(BaseProvider):
@@ -148,13 +148,13 @@ class UltraProvider(BaseProvider):
     ):
         self.log = getLogger(f'UltraProvider[{id}]')
         self.log.debug(
-            '__init__: id=%s, account=%s, username=%s, ' 'password=***',
+            '__init__: id=%s, account=%s, username=%s, password=***',
             id,
             account,
             username,
         )
 
-        super(UltraProvider, self).__init__(id, *args, **kwargs)
+        super().__init__(id, *args, **kwargs)
 
         self._base_uri = 'https://restapi.ultradns.com'
         self._sess = Session()
