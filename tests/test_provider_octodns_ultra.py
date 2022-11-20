@@ -28,7 +28,9 @@ def _get_provider():
             text='{"token type": "Bearer", "refresh_token": "abc", '
             '"access_token":"123", "expires_in": "3600"}',
         )
-        return UltraProvider('test', 'testacct', 'user', 'pass')
+        return UltraProvider(
+            'test', 'testacct', 'user', 'pass', strict_supports=False
+        )
 
 
 class TestUltraProvider(TestCase):
