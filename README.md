@@ -46,6 +46,8 @@ providers:
 
 ### Support Information
 
+Ultra provider supports full root NS record management.
+
 #### Records
 
 UltraProvider supports A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, and TXT
