@@ -353,12 +353,12 @@ class TestUltraProvider(TestCase):
             None,  # zone create
         ] + [
             None
-        ] * 15  # individual record creates
+        ] * 16  # individual record creates
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEqual(15, len(plan.changes))
-        self.assertEqual(15, provider.apply(plan))
+        self.assertEqual(16, len(plan.changes))
+        self.assertEqual(16, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls(
@@ -408,7 +408,7 @@ class TestUltraProvider(TestCase):
             True,
         )
         # expected number of total calls
-        self.assertEqual(17, provider._request.call_count)
+        self.assertEqual(18, provider._request.call_count)
 
         # Create sample rrset payload to attempt to alter
         page1 = json_load(open('tests/fixtures/ultra-records-page-1.json'))

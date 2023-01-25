@@ -70,6 +70,7 @@ class UltraProvider(BaseProvider):
     TYPE_TO_RECORDS = {v: k for k, v in RECORDS_TO_TYPE.items()}
     SUPPORTS = set(TYPE_TO_RECORDS.keys())
 
+    SUPPORTS_ROOT_NS = True
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
     TIMEOUT = 5

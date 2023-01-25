@@ -50,6 +50,10 @@ providers:
 
 UltraProvider supports A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, and TXT
 
+#### Root NS Records
+
+UltraProvider supports full root NS record management.
+
 #### Dynamic
 
 UltraProvider does not support dynamic records.
