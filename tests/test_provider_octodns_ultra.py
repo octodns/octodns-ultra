@@ -4,17 +4,19 @@
 
 from json import load as json_load
 from os.path import dirname, join
-from requests import HTTPError
-from requests_mock import ANY, mock as requests_mock
-from urllib.parse import parse_qs
 from unittest import TestCase
 from unittest.mock import Mock, call
+from urllib.parse import parse_qs
 
-from octodns.record import Record
+from requests import HTTPError
+from requests_mock import ANY
+from requests_mock import mock as requests_mock
+
 from octodns.provider.yaml import YamlProvider
+from octodns.record import Record
 from octodns.zone import Zone
 
-from octodns_ultra import UltraProvider, UltraNoZonesExistException
+from octodns_ultra import UltraNoZonesExistException, UltraProvider
 
 
 def _get_provider():
