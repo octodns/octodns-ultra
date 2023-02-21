@@ -7,6 +7,7 @@ from logging import getLogger
 
 from requests import Session
 
+from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
 from octodns.record import Record
@@ -160,6 +161,11 @@ class UltraProvider(BaseProvider):
 
         self._base_uri = 'https://restapi.ultradns.com'
         self._sess = Session()
+        self._sess.headers.update(
+            {
+                'User-Agent': f'octodns/{octodns_version} octodns-ultra/{__VERSION__}'
+            }
+        )
         self._account = account
         self._timeout = timeout
 
