@@ -45,7 +45,7 @@ class UltraClientUnauthorized(UltraClientException):
 
 class UltraProvider(BaseProvider):
     '''
-    Neustar UltraDNS provider
+    UltraDNS provider
 
     Documentation for Ultra REST API:
     https://ultra-portalstatic.ultradns.com/static/docs/REST-API_User_Guide.pdf
