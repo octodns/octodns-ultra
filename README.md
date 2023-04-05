@@ -1,6 +1,6 @@
 ## Ultra DNS provider for octoDNS
 
-An [octoDNS](https://github.com/octodns/octodns/) provider that targets [Ultra DNS](https://www.home.neustar/dns-services).
+An [octoDNS](https://github.com/octodns/octodns/) provider that targets [Ultra DNS](https://vercara.com/authoritative-dns).
 
 ### Installation
 
