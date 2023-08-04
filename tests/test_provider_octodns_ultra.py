@@ -144,7 +144,7 @@ class TestUltraProvider(TestCase):
         provider._zones = None
         with requests_mock() as mock:
             mock.get(
-                f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY',
+                f'{self.host}{path}?limit=1000&q=zone_type%3APRIMARY',
                 status_code=200,
                 json={
                     "cursorInfo": {
@@ -155,7 +155,7 @@ class TestUltraProvider(TestCase):
                 },
             )
             mock.get(
-                f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY'
+                f'{self.host}{path}?limit=1000&q=zone_type%3APRIMARY'
                 '&cursor=em9uZS50ZXN0LjpORVhUCg==',
                 status_code=200,
                 json={
@@ -271,7 +271,7 @@ class TestUltraProvider(TestCase):
         rec_path = '/v2/zones/octodns1.test./rrsets'
         with requests_mock() as mock:
             mock.get(
-                f'{self.host}{zone_path}?limit=100&q=zone_type%3APRIMARY',
+                f'{self.host}{zone_path}?limit=1000&q=zone_type%3APRIMARY',
                 status_code=200,
                 json=zone_payload,
             )
@@ -312,13 +312,13 @@ class TestUltraProvider(TestCase):
         with requests_mock() as mock:
             with open('tests/fixtures/ultra-zones-page-1.json') as fh:
                 mock.get(
-                    f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY',
+                    f'{self.host}{path}?limit=1000&q=zone_type%3APRIMARY',
                     status_code=200,
                     text=fh.read(),
                 )
             with open('tests/fixtures/ultra-zones-page-2.json') as fh:
                 mock.get(
-                    f'{self.host}{path}?limit=100&q=zone_type%3APRIMARY&'
+                    f'{self.host}{path}?limit=1000&q=zone_type%3APRIMARY&'
                     'cursor=b2N0b2RuczE4LnRlc3QuOk5FWFQK',
                     status_code=200,
                     text=fh.read(),
