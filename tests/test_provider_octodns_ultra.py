@@ -276,7 +276,7 @@ class TestUltraProvider(TestCase):
                 json=zone_payload,
             )
             mock.get(
-                f'{self.host}{rec_path}?offset=0&limit=100',
+                f'{self.host}{rec_path}?offset=0&limit=1000',
                 status_code=200,
                 json=records_payload,
             )
@@ -326,14 +326,14 @@ class TestUltraProvider(TestCase):
             with open('tests/fixtures/ultra-records-page-1.json') as fh:
                 rec_path = '/v2/zones/octodns1.test./rrsets'
                 mock.get(
-                    f'{self.host}{rec_path}?offset=0&limit=100',
+                    f'{self.host}{rec_path}?offset=0&limit=1000',
                     status_code=200,
                     text=fh.read(),
                 )
             with open('tests/fixtures/ultra-records-page-2.json') as fh:
                 rec_path = '/v2/zones/octodns1.test./rrsets'
                 mock.get(
-                    f'{self.host}{rec_path}?offset=10&limit=100',
+                    f'{self.host}{rec_path}?offset=10&limit=1000',
                     status_code=200,
                     text=fh.read(),
                 )

@@ -77,6 +77,7 @@ class UltraProvider(BaseProvider):
     SUPPORTS_DYNAMIC = False
     TIMEOUT = 5
     ZONE_REQUEST_LIMIT = 1000
+    RRSET_REQUEST_LIMIT = 1000
 
     def _request(
         self,
@@ -282,7 +283,7 @@ class UltraProvider(BaseProvider):
             records = []
             path = f'/v2/zones/{zone.name}/rrsets'
             offset = 0
-            limit = 100
+            limit = self.RRSET_REQUEST_LIMIT
             paging = True
             while paging:
                 resp = self._get(
