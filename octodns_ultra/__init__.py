@@ -349,7 +349,7 @@ class UltraProvider(BaseProvider):
             exists,
         )
         return exists
-    
+
     def _force_root_ns_update(self, changes):
         '''
         Changes any 'Create' changetype for a root NS record to an 'Update'
@@ -363,7 +363,7 @@ class UltraProvider(BaseProvider):
                 and isinstance(change, Create)
             ):
                 change.__class__ = Update
-                return
+        return
 
     def _apply(self, plan):
         desired = plan.desired
