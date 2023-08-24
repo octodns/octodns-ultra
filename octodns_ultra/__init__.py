@@ -10,7 +10,7 @@ from requests import Session
 from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
-from octodns.record import Create, NsRecord, Record, Update
+from octodns.record import Create, Record, Update
 
 __VERSION__ = '0.0.2'
 
@@ -358,10 +358,13 @@ class UltraProvider(BaseProvider):
         '''
         for change in changes:
             if (
-                change.record.name == ""
-                and isinstance(change.record, NsRecord)
+                change.record.name == ''
+                and change.record._type == 'NS'
                 and isinstance(change, Create)
             ):
+                self.log.info(
+                    '_force_root_ns_update: found root NS record creation, changing to update'
+                )
                 change.__class__ = Update
         return
 
