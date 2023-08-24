@@ -10,7 +10,7 @@ from requests import Session
 from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
-from octodns.record import Record
+from octodns.record import Create, Record, Update
 
 __VERSION__ = '0.0.2'
 
@@ -350,6 +350,24 @@ class UltraProvider(BaseProvider):
         )
         return exists
 
+    def _force_root_ns_update(self, changes):
+        '''
+        Changes any 'Create' changetype for a root NS record to an 'Update'
+        changetype. Used on new zone creation, since Ultra will automatically create root NS records.
+        This means our desired NS records must be applied as an Update, rather than a Create.
+        '''
+        for i, change in enumerate(changes):
+            if (
+                change.record.name == ''
+                and change.record._type == 'NS'
+                and isinstance(change, Create)
+            ):
+                self.log.info(
+                    '_force_root_ns_update: found root NS record creation, changing to update'
+                )
+                changes[i] = Update(None, change.record)
+        return changes
+
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
@@ -371,6 +389,7 @@ class UltraProvider(BaseProvider):
             self._post('/v2/zones', json=data)
             self.zones.append(name)
             self._zone_records[name] = {}
+            changes = self._force_root_ns_update(changes)
 
         for change in changes:
             class_name = change.__class__.__name__

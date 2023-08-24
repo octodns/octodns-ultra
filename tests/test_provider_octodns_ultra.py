@@ -406,8 +406,14 @@ class TestUltraProvider(TestCase):
                         ],
                     },
                 ),
+                # make sure we updated NS records instead of trying to create them
+                call(
+                    'PUT',
+                    '/v2/zones/unit.tests./rrsets/NS/unit.tests.',
+                    json={'ttl': 3600, 'rdata': ['6.2.3.4.', '7.2.3.4.']},
+                ),
             ],
-            True,
+            any_order=True,
         )
         # expected number of total calls
         self.assertEqual(18, provider._request.call_count)
