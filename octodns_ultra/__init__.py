@@ -366,7 +366,7 @@ class UltraProvider(BaseProvider):
                     '_force_root_ns_update: found root NS record creation, changing to update'
                 )
                 changes[i] = Update(None, change.record)
-        return
+        return changes
 
     def _apply(self, plan):
         desired = plan.desired
@@ -389,7 +389,7 @@ class UltraProvider(BaseProvider):
             self._post('/v2/zones', json=data)
             self.zones.append(name)
             self._zone_records[name] = {}
-            self._force_root_ns_update(changes)
+            changes = self._force_root_ns_update(changes)
 
         for change in changes:
             class_name = change.__class__.__name__
