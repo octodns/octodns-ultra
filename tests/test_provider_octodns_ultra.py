@@ -139,6 +139,10 @@ class TestUltraProvider(TestCase):
             self.assertEqual(1, mock.call_count)
             self.assertEqual(1, len(zones))
             self.assertEqual('testzone123.com.', zones[0])
+            zones = provider.list_zones()
+            self.assertEqual(1, mock.call_count)
+            self.assertEqual(1, len(zones))
+            self.assertEqual('testzone123.com.', zones[0])
 
         # Test different paging behavior
         provider._zones = None
