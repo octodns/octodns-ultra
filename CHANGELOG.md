@@ -1,3 +1,7 @@
+## v0.0.5 - 2024-01-25
+
+* Skip unsupported dynamic record type "Directional Pool"
+
 ## v0.0.4 - 2024-01-25
 
 * Enable support for wildcard zone lookups (list_zones())

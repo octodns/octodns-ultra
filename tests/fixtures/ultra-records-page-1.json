@@ -84,6 +84,48 @@
             "rdata": [
                 "v=spf1 -all"
             ]
+        },
+        {
+            "ownerName": "dirpool.octodns1.test.",
+            "profile": {
+                "@context": "http://schemas.ultradns.com/DirPool.jsonschema",
+                "description": "dirpool.octodns1.test",
+                "ignoreECS": false,
+                "rdataInfo": [
+                    {
+                        "allNonConfigured": true,
+                        "ttl": 600,
+                        "type": "A"
+                    },
+                    {
+                        "geoInfo": {
+                            "codes": [
+                                "CA"
+                            ],
+                            "name": "xxx"
+                        },
+                        "ttl": 86400,
+                        "type": "SF"
+                    },
+                    {
+                        "geoInfo": {
+                            "codes": [
+                                "ASI",
+                                "OCN"
+                            ],
+                            "name": "yyy"
+                        },
+                        "ttl": 86400,
+                        "type": "SF"
+                    }
+                ]
+            },
+            "rdata": [
+                "127.0.0.1",
+                "xxxrecord.octodns1.test.",
+                "yyyrecord.octodns1.test."
+            ],
+            "rrtype": "A (1)"
         }
     ],
     "resultInfo": {
