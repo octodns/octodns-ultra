@@ -334,10 +334,8 @@ class UltraProvider(BaseProvider):
                     == 'http://schemas.ultradns.com/DirPool.jsonschema'
                 ):
                     self.log.warning(
-                        'populate: ignoring record with '
-                        'unsupported type, %s  %s',
+                        'populate: ignoring record with unsupported type, %s [Directional Pool (Dynamic)]',
                         name,
-                        '[Directional Pool (Dynamic)]',
                     )
                     continue
                 try:
