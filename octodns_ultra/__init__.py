@@ -201,6 +201,9 @@ class UltraProvider(BaseProvider):
 
         return self._zones
 
+    def list_zones(self):
+        return self.zones
+
     def _data_for_multiple(self, _type, records):
         return {
             'ttl': records['ttl'],
