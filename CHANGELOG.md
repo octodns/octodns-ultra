@@ -2,7 +2,7 @@
 
 * Enable support for root level NS records (`SUPPORTS_ROOT_NS=true`)
 * Enable support for wildcard zone lookups (list_zones())
-
+* Skip unsupported dynamic record type "Directional Pool"
 
 ## v0.0.2 - 2022-10-10 - APIs gonna break
 

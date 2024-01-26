@@ -328,6 +328,16 @@ class UltraProvider(BaseProvider):
                 name = zone.hostname_from_fqdn(record['ownerName'])
                 if record['rrtype'] == 'SOA (6)':
                     continue
+                if (
+                    record['rrtype'] == 'A (1)'
+                    and record.get('profile', {}).get('@context')
+                    == 'http://schemas.ultradns.com/DirPool.jsonschema'
+                ):
+                    self.log.warning(
+                        'populate: ignoring record with unsupported type, %s [Directional Pool (Dynamic)]',
+                        name,
+                    )
+                    continue
                 try:
                     _type = self.RECORDS_TO_TYPE[record['rrtype']]
                 except KeyError:
