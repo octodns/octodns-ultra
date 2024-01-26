@@ -330,7 +330,7 @@ class UltraProvider(BaseProvider):
                     continue
                 if (
                     record['rrtype'] == 'A (1)'
-                    and record.get('profile', {}).get('@context'])
+                    and record.get('profile', {}).get('@context')
                     == 'http://schemas.ultradns.com/DirPool.jsonschema'
                 ):
                     self.log.warning(
