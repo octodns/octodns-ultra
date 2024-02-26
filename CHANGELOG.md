@@ -1,4 +1,4 @@
-## v0.0.3 - 2023-??-??
+## v0.0.3 - 2024-02-26 - A long overdue one
 
 * Enable support for root level NS records (`SUPPORTS_ROOT_NS=true`)
 * Enable support for wildcard zone lookups (list_zones())
