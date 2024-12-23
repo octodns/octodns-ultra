@@ -1,3 +1,11 @@
+## v1.0.0 - 2024-??-?? - ???
+
+### Notedworthy Changes:
+
+* `SPF` record support removed, records should be migrated to `TXT` before
+  upgrading.
+* Requires octoDNS >= 1.5.0
+
 ## v0.0.3 - 2024-02-26 - A long overdue one
 
 * Enable support for root level NS records (`SUPPORTS_ROOT_NS=true`)
