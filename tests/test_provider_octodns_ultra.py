@@ -346,7 +346,7 @@ class TestUltraProvider(TestCase):
 
             self.assertTrue(provider.populate(zone))
             self.assertEqual('octodns1.test.', zone.name)
-            self.assertEqual(12, len(zone.records))
+            self.assertEqual(11, len(zone.records))
             self.assertEqual(4, mock.call_count)
 
     def test_apply(self):
@@ -363,8 +363,8 @@ class TestUltraProvider(TestCase):
 
         # non-existent zone, create everything
         plan = provider.plan(self.expected)
-        self.assertEqual(16, len(plan.changes))
-        self.assertEqual(16, provider.apply(plan))
+        self.assertEqual(14, len(plan.changes))
+        self.assertEqual(14, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._request.assert_has_calls(
@@ -420,11 +420,13 @@ class TestUltraProvider(TestCase):
             any_order=True,
         )
         # expected number of total calls
-        self.assertEqual(18, provider._request.call_count)
+        self.assertEqual(16, provider._request.call_count)
 
         # Create sample rrset payload to attempt to alter
-        page1 = json_load(open('tests/fixtures/ultra-records-page-1.json'))
-        page2 = json_load(open('tests/fixtures/ultra-records-page-2.json'))
+        with open('tests/fixtures/ultra-records-page-1.json') as fh:
+            page1 = json_load(fh)
+        with open('tests/fixtures/ultra-records-page-2.json') as fh:
+            page2 = json_load(fh)
         mock_rrsets = list()
         mock_rrsets.extend(page1['rrSets'])
         mock_rrsets.extend(page2['rrSets'])
@@ -464,8 +466,8 @@ class TestUltraProvider(TestCase):
         )
 
         plan = provider.plan(wanted)
-        self.assertEqual(11, len(plan.changes))
-        self.assertEqual(11, provider.apply(plan))
+        self.assertEqual(10, len(plan.changes))
+        self.assertEqual(10, provider.apply(plan))
         self.assertTrue(plan.exists)
 
         provider._request.assert_has_calls(
@@ -654,18 +656,6 @@ class TestUltraProvider(TestCase):
                     zone,
                     'ptr',
                     {'ttl': 60, 'type': 'PTR', 'value': 'a.unit.tests.'},
-                ),
-            ),
-            # SPF
-            (
-                'spf',
-                'SPF',
-                '/v2/zones/unit.tests./rrsets/SPF/spf.unit.tests.',
-                {'ttl': 60, 'rdata': ['v=spf1 -all']},
-                Record.new(
-                    zone,
-                    'spf',
-                    {'ttl': 60, 'type': 'SPF', 'values': ['v=spf1 -all']},
                 ),
             ),
             # SRV
