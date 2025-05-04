@@ -67,7 +67,6 @@ class UltraProvider(BaseProvider):
         'MX (15)': 'MX',
         'NS (2)': 'NS',
         'PTR (12)': 'PTR',
-        'SPF (99)': 'SPF',
         'SRV (33)': 'SRV',
         'TXT (16)': 'TXT',
     }
