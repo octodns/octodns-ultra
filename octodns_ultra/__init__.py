@@ -408,6 +408,7 @@ class UltraProvider(BaseProvider):
                     'name': name,
                     'accountName': self._account,
                     'type': 'PRIMARY',
+                    'valimailMonitor': False,
                 },
                 'primaryCreateInfo': {'createType': 'NEW'},
             }
