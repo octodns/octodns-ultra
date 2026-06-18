@@ -79,6 +79,7 @@ class UltraProvider(BaseProvider):
     TIMEOUT = 5
     ZONE_REQUEST_LIMIT = 1000
     RRSET_REQUEST_LIMIT = 1000
+    VALIMAIL_MANAGED_TYPES = {'TXT', 'CNAME', 'NS'}
 
     def _request(
         self,
@@ -160,14 +161,23 @@ class UltraProvider(BaseProvider):
         )
 
     def __init__(
-        self, id, account, username, password, timeout=TIMEOUT, *args, **kwargs
+        self,
+        id,
+        account,
+        username,
+        password,
+        timeout=TIMEOUT,
+        valimail=False,
+        *args,
+        **kwargs,
     ):
         self.log = getLogger(f'UltraProvider[{id}]')
         self.log.debug(
-            '__init__: id=%s, account=%s, username=%s, password=***',
+            '__init__: id=%s, account=%s, username=%s, password=***, valimail=%s',
             id,
             account,
             username,
+            valimail,
         )
 
         super().__init__(id, *args, **kwargs)
@@ -181,6 +191,7 @@ class UltraProvider(BaseProvider):
         )
         self._account = account
         self._timeout = timeout
+        self._valimail = valimail
 
         self._login(username, password)
 
@@ -321,6 +332,29 @@ class UltraProvider(BaseProvider):
         record = Record.new(zone, name, data, source=self, lenient=lenient)
         return record
 
+    def _is_valimail_managed_rrset(self, zone, rrset):
+        if not self._valimail:
+            return False
+
+        try:
+            _type = self.RECORDS_TO_TYPE[rrset['rrtype']]
+        except KeyError:
+            return False
+
+        if _type not in self.VALIMAIL_MANAGED_TYPES:
+            return False
+
+        return zone.hostname_from_fqdn(rrset['ownerName']).lower() == '_dmarc'
+
+    def _is_valimail_managed_record(self, record):
+        if not self._valimail:
+            return False
+
+        return (
+            record._type in self.VALIMAIL_MANAGED_TYPES
+            and record.name.lower() == '_dmarc'
+        )
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
@@ -338,6 +372,13 @@ class UltraProvider(BaseProvider):
             for record in records:
                 name = zone.hostname_from_fqdn(record['ownerName'])
                 if record['rrtype'] == 'SOA (6)':
+                    continue
+                if self._is_valimail_managed_rrset(zone, record):
+                    self.log.info(
+                        'populate: ignoring valimail managed record, %s %s',
+                        name,
+                        record['rrtype'],
+                    )
                     continue
                 if (
                     record['rrtype'] == 'A (1)'
@@ -393,6 +434,17 @@ class UltraProvider(BaseProvider):
                 changes[i] = Update(None, change.record)
         return changes
 
+    def _include_change(self, change):
+        if self._is_valimail_managed_record(change.record):
+            self.log.info(
+                '_include_change: ignoring valimail managed change, %s %s',
+                change.record.name,
+                change.record._type,
+            )
+            return False
+
+        return super()._include_change(change)
+
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
@@ -408,7 +460,7 @@ class UltraProvider(BaseProvider):
                     'name': name,
                     'accountName': self._account,
                     'type': 'PRIMARY',
-                    'valimailMonitor': False,
+                    'valimailMonitor': self._valimail,
                 },
                 'primaryCreateInfo': {'createType': 'NEW'},
             }

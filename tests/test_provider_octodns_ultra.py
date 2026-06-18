@@ -380,6 +380,7 @@ class TestUltraProvider(TestCase):
                             'name': 'unit.tests.',
                             'accountName': 'testacct',
                             'type': 'PRIMARY',
+                            'valimailMonitor': False,
                         },
                         'primaryCreateInfo': {'createType': 'NEW'},
                     },
@@ -516,6 +517,98 @@ class TestUltraProvider(TestCase):
             ],
             True,
         )
+
+    def test_valimail_managed_dmarc_ignored(self):
+        provider = _get_provider()
+        provider._valimail = True
+        zone = Zone('unit.tests.', [])
+
+        # Verify DMARC is not treated as valimail-managed when rrtype is
+        # either known-but-not-managed (A) or unknown to the provider (SPF).
+        self.assertFalse(
+            provider._is_valimail_managed_rrset(
+                zone,
+                {
+                    'ownerName': '_dmarc.unit.tests.',
+                    'rrtype': 'A (1)',
+                    'ttl': 300,
+                    'rdata': ['1.2.3.4'],
+                },
+            )
+        )
+        self.assertFalse(
+            provider._is_valimail_managed_rrset(
+                zone,
+                {
+                    'ownerName': '_dmarc.unit.tests.',
+                    'rrtype': 'SPF (99)',
+                    'ttl': 300,
+                    'rdata': ['v=spf1 -all'],
+                },
+            )
+        )
+
+        provider._zones = ['unit.tests.']
+        provider.zone_records = Mock(
+            return_value=[
+                {
+                    'ownerName': '_dmarc.unit.tests.',
+                    'rrtype': 'TXT (16)',
+                    'ttl': 300,
+                    'rdata': [
+                        'v=DMARC1; p=none; rua=mailto:dmarc_agg@vali.email'
+                    ],
+                },
+                {
+                    'ownerName': 'txt.unit.tests.',
+                    'rrtype': 'TXT (16)',
+                    'ttl': 300,
+                    'rdata': ['hello'],
+                },
+            ]
+        )
+
+        populated = Zone('unit.tests.', [])
+        self.assertTrue(provider.populate(populated))
+        self.assertEqual(
+            {('txt', 'TXT')}, {(r.name, r._type) for r in populated.records}
+        )
+
+        # Existing valimail managed DMARC rrsets should not generate a delete.
+        provider.zone_records = Mock(
+            return_value=[
+                {
+                    'ownerName': '_dmarc.unit.tests.',
+                    'rrtype': 'TXT (16)',
+                    'ttl': 300,
+                    'rdata': [
+                        'v=DMARC1; p=none; rua=mailto:dmarc_agg@vali.email'
+                    ],
+                }
+            ]
+        )
+        plan = provider.plan(Zone('unit.tests.', []))
+        self.assertIsNone(plan)
+
+        # Desired valimail-managed DMARC should not generate a create/update.
+        desired = Zone('unit.tests.', [])
+        dmarc_record = Record.new(
+            desired,
+            '_dmarc',
+            {
+                'ttl': 300,
+                'type': 'TXT',
+                'values': [
+                    'v=DMARC1\\; p=none\\; rua=mailto:dmarc_agg@vali.email'
+                ],
+            },
+        )
+        desired.add_record(dmarc_record)
+        plan = provider.plan(desired)
+        self.assertIsNone(plan)
+
+        provider._valimail = False
+        self.assertFalse(provider._is_valimail_managed_record(dmarc_record))
 
     def test_gen_data(self):
         provider = _get_provider()
