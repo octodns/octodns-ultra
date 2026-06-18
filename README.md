@@ -46,6 +46,11 @@ providers:
 
 ### Support Information
 
+#### API Version
+
+Targets the UltraDNS v3 REST API. Zone list/create use `/v3`; auth and rrsets
+use unversioned paths. No config changes from v2.
+
 #### Records
 
 UltraProvider supports A, AAAA, CAA, CNAME, MX, NS, PTR, SPF, SRV, and TXT
