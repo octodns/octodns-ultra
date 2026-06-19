@@ -236,6 +236,16 @@ class TestUltraProvider(TestCase):
             )
             provider._put(path, json=payload)
 
+        # Test all PATCH patterns
+        with requests_mock() as mock:
+            mock.patch(
+                f'{self.host}{path}',
+                status_code=200,
+                headers={'Authorization': 'Bearer 123'},
+                json=payload,
+            )
+            provider._patch(path, json=payload)
+
         # Test all DELETE patterns
         with requests_mock() as mock:
             mock.delete(
@@ -521,6 +531,9 @@ class TestUltraProvider(TestCase):
     def test_valimail_managed_dmarc_ignored(self):
         provider = _get_provider()
         provider._valimail = True
+        provider._get = Mock(
+            return_value={'properties': {'valimailMonitor': True}}
+        )
         zone = Zone('unit.tests.', [])
 
         # Verify DMARC is not treated as valimail-managed when rrtype is
@@ -609,6 +622,61 @@ class TestUltraProvider(TestCase):
 
         provider._valimail = False
         self.assertFalse(provider._is_valimail_managed_record(dmarc_record))
+
+    def test_plan_meta_valimail_monitor(self):
+        provider = _get_provider()
+        provider._zones = ['unit.tests.']
+        provider._valimail = True
+
+        existing = Zone('unit.tests.', [])
+        desired = Zone('unit.tests.', [])
+
+        provider._get = Mock(
+            return_value={'properties': {'valimailMonitor': 'True'}}
+        )
+        self.assertIsNone(provider._plan_meta(existing, desired, []))
+        provider._get.assert_called_once_with('/v3/zones/unit.tests.')
+
+        provider._get.reset_mock()
+        provider._get.return_value = {'properties': {'valimailMonitor': False}}
+        self.assertEqual(
+            {'valimailMonitor': {'current': False, 'desired': True}},
+            provider._plan_meta(existing, desired, []),
+        )
+        provider._get.assert_called_once_with('/v3/zones/unit.tests.')
+
+        provider._get.reset_mock()
+        provider._get.return_value = {'properties': {'valimailMonitor': 1}}
+        self.assertIsNone(provider._plan_meta(existing, desired, []))
+        provider._get.assert_called_once_with('/v3/zones/unit.tests.')
+
+        provider._get.reset_mock()
+        provider._zones = []
+        self.assertIsNone(provider._plan_meta(existing, desired, []))
+        provider._get.assert_not_called()
+
+    def test_apply_updates_valimail_monitor_from_plan_meta(self):
+        provider = _get_provider()
+        provider._zones = ['unit.tests.']
+        provider._request = Mock()
+
+        plan = Mock()
+        plan.desired = Zone('unit.tests.', [])
+        plan.changes = []
+        plan.meta = {'valimailMonitor': {'current': False, 'desired': True}}
+
+        provider._apply(plan)
+
+        provider._request.assert_has_calls(
+            [
+                call(
+                    'PATCH',
+                    '/zones/unit.tests.',
+                    json={'primaryCreateInfo': {'valimailMonitor': True}},
+                )
+            ]
+        )
+        self.assertEqual(1, provider._request.call_count)
 
     def test_gen_data(self):
         provider = _get_provider()
