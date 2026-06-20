@@ -19,7 +19,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:07Z"
+                "lastModifiedDateTime": "2020-06-19T01:07Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -31,7 +32,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:05Z"
+                "lastModifiedDateTime": "2020-06-19T01:05Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -43,7 +45,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:07Z"
+                "lastModifiedDateTime": "2020-06-19T01:07Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -55,7 +58,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:05Z"
+                "lastModifiedDateTime": "2020-06-19T01:05Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -67,7 +71,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:05Z"
+                "lastModifiedDateTime": "2020-06-19T01:05Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -79,7 +84,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:05Z"
+                "lastModifiedDateTime": "2020-06-19T01:05Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -91,7 +97,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:05Z"
+                "lastModifiedDateTime": "2020-06-19T01:05Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -103,7 +110,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:06Z"
+                "lastModifiedDateTime": "2020-06-19T01:06Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -115,7 +123,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:06Z"
+                "lastModifiedDateTime": "2020-06-19T01:06Z",
+                "valimailMonitor": false
             }
         },
         {
@@ -127,7 +136,8 @@
                 "status": "ACTIVE",
                 "owner": "phelpstest",
                 "resourceRecordCount": 5,
-                "lastModifiedDateTime": "2020-06-19T01:06Z"
+                "lastModifiedDateTime": "2020-06-19T01:06Z",
+                "valimailMonitor": false
             }
         }
     ]

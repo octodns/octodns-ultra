@@ -107,7 +107,7 @@ class TestUltraProvider(TestCase):
             )
             zones = provider.zones
             self.assertEqual(1, mock.call_count)
-            self.assertEqual(list(), zones)
+            self.assertEqual({}, zones)
 
         # Reset zone cache so they are queried again
         provider._zones = None
@@ -126,6 +126,7 @@ class TestUltraProvider(TestCase):
                             "owner": "user",
                             "resourceRecordCount": 5,
                             "lastModifiedDateTime": "2020-06-19T00:47Z",
+                            "valimailMonitor": False,
                         }
                     }
                 ],
@@ -140,7 +141,10 @@ class TestUltraProvider(TestCase):
             zones = provider.zones
             self.assertEqual(1, mock.call_count)
             self.assertEqual(1, len(zones))
-            self.assertEqual('testzone123.com.', zones[0])
+            self.assertEqual(
+                {'name': 'testzone123.com.', 'valimailMonitor': False},
+                zones['testzone123.com.'],
+            )
             zones = provider.list_zones()
             self.assertEqual(1, mock.call_count)
             self.assertEqual(1, len(zones))
@@ -259,7 +263,14 @@ class TestUltraProvider(TestCase):
         provider = _get_provider()
         zone_payload = {
             "cursorInfo": {},
-            "zones": [{"properties": {"name": "octodns1.test."}}],
+            "zones": [
+                {
+                    "properties": {
+                        "name": "octodns1.test.",
+                        "valimailMonitor": False,
+                    }
+                }
+            ],
         }
 
         records_payload = {
@@ -446,7 +457,12 @@ class TestUltraProvider(TestCase):
 
         # Seed a bunch of records into a zone and verify update / delete ops
         provider._request.reset_mock()
-        provider._zones = ['octodns1.test.']
+        provider._zones = {
+            'octodns1.test.': {
+                'name': 'octodns1.test.',
+                'valimailMonitor': False,
+            }
+        }
         provider.zone_records = Mock(return_value=mock_rrsets)
 
         provider._request.side_effect = [None] * 13
@@ -561,7 +577,9 @@ class TestUltraProvider(TestCase):
             )
         )
 
-        provider._zones = ['unit.tests.']
+        provider._zones = {
+            'unit.tests.': {'name': 'unit.tests.', 'valimailMonitor': True}
+        }
         provider.zone_records = Mock(
             return_value=[
                 {
@@ -625,39 +643,35 @@ class TestUltraProvider(TestCase):
 
     def test_plan_meta_valimail_monitor(self):
         provider = _get_provider()
-        provider._zones = ['unit.tests.']
         provider._valimail = True
 
         existing = Zone('unit.tests.', [])
         desired = Zone('unit.tests.', [])
 
-        provider._get = Mock(
-            return_value={'properties': {'valimailMonitor': 'True'}}
-        )
+        provider._zones = {
+            'unit.tests.': {'name': 'unit.tests.', 'valimailMonitor': True}
+        }
         self.assertIsNone(provider._plan_meta(existing, desired, []))
-        provider._get.assert_called_once_with('/v3/zones/unit.tests.')
 
-        provider._get.reset_mock()
-        provider._get.return_value = {'properties': {'valimailMonitor': False}}
+        provider._zones = {
+            'unit.tests.': {'name': 'unit.tests.', 'valimailMonitor': False}
+        }
         self.assertEqual(
             {'valimailMonitor': {'current': False, 'desired': True}},
             provider._plan_meta(existing, desired, []),
         )
-        provider._get.assert_called_once_with('/v3/zones/unit.tests.')
 
-        provider._get.reset_mock()
-        provider._get.return_value = {'properties': {'valimailMonitor': 1}}
+        provider._valimail = False
         self.assertIsNone(provider._plan_meta(existing, desired, []))
-        provider._get.assert_called_once_with('/v3/zones/unit.tests.')
 
-        provider._get.reset_mock()
-        provider._zones = []
+        provider._zones = {}
         self.assertIsNone(provider._plan_meta(existing, desired, []))
-        provider._get.assert_not_called()
 
     def test_apply_updates_valimail_monitor_from_plan_meta(self):
         provider = _get_provider()
-        provider._zones = ['unit.tests.']
+        provider._zones = {
+            'unit.tests.': {'name': 'unit.tests.', 'valimailMonitor': False}
+        }
         provider._request = Mock()
 
         plan = Mock()
