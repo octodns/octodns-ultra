@@ -401,9 +401,11 @@ class TestUltraProvider(TestCase):
                             'name': 'unit.tests.',
                             'accountName': 'testacct',
                             'type': 'PRIMARY',
+                        },
+                        'primaryCreateInfo': {
+                            'createType': 'NEW',
                             'valimailMonitor': False,
                         },
-                        'primaryCreateInfo': {'createType': 'NEW'},
                     },
                 ),
                 # Validate multi-ip apex A record is correct

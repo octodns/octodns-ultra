@@ -492,9 +492,11 @@ class UltraProvider(BaseProvider):
                     'name': name,
                     'accountName': self._account,
                     'type': 'PRIMARY',
+                },
+                'primaryCreateInfo': {
+                    'createType': 'NEW',
                     'valimailMonitor': self._valimail,
                 },
-                'primaryCreateInfo': {'createType': 'NEW'},
             }
             self._post('/v2/zones', json=data)
             self.zones[name] = {'name': name, 'valimailMonitor': self._valimail}
