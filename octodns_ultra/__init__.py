@@ -137,6 +137,9 @@ class UltraProvider(BaseProvider):
     def _put(self, path, **kwargs):
         return self._request('PUT', path, **kwargs)
 
+    def _patch(self, path, **kwargs):
+        return self._request('PATCH', path, **kwargs)
+
     def _login(self, username, password):
         '''
         Get an authorization token by logging in using the provided credentials
@@ -154,14 +157,23 @@ class UltraProvider(BaseProvider):
         )
 
     def __init__(
-        self, id, account, username, password, timeout=TIMEOUT, *args, **kwargs
+        self,
+        id,
+        account,
+        username,
+        password,
+        timeout=TIMEOUT,
+        valimail=False,
+        *args,
+        **kwargs,
     ):
         self.log = getLogger(f'UltraProvider[{id}]')
         self.log.debug(
-            '__init__: id=%s, account=%s, username=%s, password=***',
+            '__init__: id=%s, account=%s, username=%s, password=***, valimail=%s',
             id,
             account,
             username,
+            valimail,
         )
 
         super().__init__(id, *args, **kwargs)
@@ -175,6 +187,7 @@ class UltraProvider(BaseProvider):
         )
         self._account = account
         self._timeout = timeout
+        self._valimail = valimail
 
         self._login(username, password)
 
@@ -202,12 +215,17 @@ class UltraProvider(BaseProvider):
                 else:
                     paging = False
 
-            self._zones = [z['properties']['name'] for z in zones]
+            self._zones = {}
+            for zone in zones:
+                self._zones[zone['properties']['name']] = {
+                    'name': zone['properties']['name'],
+                    'valimailMonitor': zone['properties']['valimailMonitor'],
+                }
 
         return self._zones
 
     def list_zones(self):
-        return self.zones
+        return list(self.zones.keys())
 
     def _data_for_multiple(self, _type, records):
         return {
@@ -286,7 +304,7 @@ class UltraProvider(BaseProvider):
 
     def zone_records(self, zone):
         if zone.name not in self._zone_records:
-            if zone.name not in self.zones:
+            if zone.name not in self.list_zones():
                 return []
 
             records = []
@@ -317,6 +335,53 @@ class UltraProvider(BaseProvider):
         record = Record.new(zone, name, data, source=self, lenient=lenient)
         return record
 
+    def _is_valimail_managed_rrset(self, zone, rrset):
+        if not self._valimail:
+            return False
+
+        try:
+            _type = self.RECORDS_TO_TYPE[rrset['rrtype']]
+        except KeyError:
+            return False
+
+        if _type != 'TXT':
+            return False
+
+        return zone.hostname_from_fqdn(rrset['ownerName']).lower() == '_dmarc'
+
+    def _is_valimail_managed_record(self, record):
+        if not self._valimail:
+            return False
+
+        return record._type == 'TXT' and record.name.lower() == '_dmarc'
+
+    def _plan_meta(self, existing, desired, changes):
+        zone_name = desired.name
+        if zone_name not in self.list_zones():
+            return None
+
+        current_valimail_monitor = self.zones.get(zone_name, {}).get(
+            'valimailMonitor'
+        )
+        desired_valimail_monitor = bool(self._valimail)
+        if current_valimail_monitor == desired_valimail_monitor:
+            return None
+
+        return {
+            'valimailMonitor': {
+                'current': current_valimail_monitor,
+                'desired': desired_valimail_monitor,
+            }
+        }
+
+    def _update_zone_valimail_monitor(self, zone_name, valimail_monitor):
+        self._patch(
+            f'/zones/{zone_name}',
+            json={
+                'primaryCreateInfo': {'valimailMonitor': bool(valimail_monitor)}
+            },
+        )
+
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
             'populate: name=%s, target=%s, lenient=%s',
@@ -334,6 +399,13 @@ class UltraProvider(BaseProvider):
             for record in records:
                 name = zone.hostname_from_fqdn(record['ownerName'])
                 if record['rrtype'] == 'SOA (6)':
+                    continue
+                if self._is_valimail_managed_rrset(zone, record):
+                    self.log.info(
+                        'populate: ignoring valimail managed record, %s %s',
+                        name,
+                        record['rrtype'],
+                    )
                     continue
                 if (
                     record['rrtype'] == 'A (1)'
@@ -389,6 +461,17 @@ class UltraProvider(BaseProvider):
                 changes[i] = Update(None, change.record)
         return changes
 
+    def _include_change(self, change):
+        if self._is_valimail_managed_record(change.record):
+            self.log.info(
+                '_include_change: ignoring valimail managed change, %s %s',
+                change.record.name,
+                change.record._type,
+            )
+            return False
+
+        return super()._include_change(change)
+
     def _apply(self, plan):
         desired = plan.desired
         changes = plan.changes
@@ -397,7 +480,8 @@ class UltraProvider(BaseProvider):
         )
 
         name = desired.name
-        if name not in self.zones:
+        created = False
+        if name not in self.list_zones():
             self.log.debug('_apply:   no matching zone, creating')
             data = {
                 'properties': {
@@ -405,12 +489,21 @@ class UltraProvider(BaseProvider):
                     'accountName': self._account,
                     'type': 'PRIMARY',
                 },
-                'primaryCreateInfo': {'createType': 'NEW'},
+                'primaryCreateInfo': {
+                    'createType': 'NEW',
+                    'valimailMonitor': self._valimail,
+                },
             }
             self._post('/v3/zones', json=data)
-            self.zones.append(name)
+            self.zones[name] = {'name': name, 'valimailMonitor': self._valimail}
             self._zone_records[name] = {}
             changes = self._force_root_ns_update(changes)
+            created = True
+
+        meta = getattr(plan, 'meta', None)
+        valimail_meta = meta.get('valimailMonitor') if meta else None
+        if not created and valimail_meta:
+            self._update_zone_valimail_monitor(name, valimail_meta['desired'])
 
         for change in changes:
             class_name = change.__class__.__name__

@@ -42,6 +42,8 @@ providers:
     username: env/ULTRA_USERNAME
     # Ultra password (required)
     password: env/ULTRA_PASSWORD
+    # Valimail enabled on created zones (optional, default=False)
+    # valimail: true
 ```
 
 ### Support Information
