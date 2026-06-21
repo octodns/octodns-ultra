@@ -47,15 +47,9 @@ class UltraClientUnauthorized(UltraClientException):
 
 class UltraProvider(BaseProvider):
     '''
-    UltraDNS provider
+    UltraDNS provider (v3 REST API: https://docs.ultradns.com/)
 
-    Documentation for Ultra REST API:
-    https://ultra-portalstatic.ultradns.com/static/docs/REST-API_User_Guide.pdf
-    Implemented to the May 26, 2021 version of the document (dated on page ii)
-    Also described as Version 3.18.0 (title page)
-
-    Tested against 3.20.1-20210521075351.36b9297
-    As determined by querying https://api.ultradns.com/version
+    Zone list/create use /v3; auth and rrsets use unversioned paths.
     '''
 
     RECORDS_TO_TYPE = {
@@ -150,7 +144,7 @@ class UltraProvider(BaseProvider):
         '''
         Get an authorization token by logging in using the provided credentials
         '''
-        path = '/v2/authorization/token'
+        path = '/authorization/token'
         data = {
             'grant_type': 'password',
             'username': username,
@@ -314,7 +308,9 @@ class UltraProvider(BaseProvider):
                 return []
 
             records = []
-            path = f'/v2/zones/{zone.name}/rrsets'
+            # Unversioned: lists rrsets. NB /v3/zones/{z}/rrsets is a
+            # different op (pools), not this one.
+            path = f'/zones/{zone.name}/rrsets'
             offset = 0
             limit = self.RRSET_REQUEST_LIMIT
             paging = True
@@ -498,7 +494,7 @@ class UltraProvider(BaseProvider):
                     'valimailMonitor': self._valimail,
                 },
             }
-            self._post('/v2/zones', json=data)
+            self._post('/v3/zones', json=data)
             self.zones[name] = {'name': name, 'valimailMonitor': self._valimail}
             self._zone_records[name] = {}
             changes = self._force_root_ns_update(changes)
@@ -581,7 +577,8 @@ class UltraProvider(BaseProvider):
         else:
             record_type = record._type
 
-        path = f'/v2/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
+        # Unversioned: rrset create/update/delete has no /v3 form.
+        path = f'/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
         contents_for = getattr(self, f'_contents_for_{record._type}')
         return path, contents_for(record)
 
@@ -636,7 +633,7 @@ class UltraProvider(BaseProvider):
                     existing_type = "APEXALIAS"
 
                 path = (
-                    f'/v2/zones/{zone_name}/rrsets/{existing_type}/'
+                    f'/zones/{zone_name}/rrsets/{existing_type}/'
                     + existing.fqdn
                 )
                 self._delete(path, json_response=False)
