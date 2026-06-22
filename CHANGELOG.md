@@ -1,3 +1,12 @@
+## v1.1.0 - 2026-06-22 - v3 API, Valimail, and zone caching
+
+### Noteworthy Changes:
+
+* Migrated to UltraDNS v3 REST API — v2 endpoints removed
+* Added `valimonitor` parameter for zone creation to support Valimail
+  integration; disabled by default, opt-in per zone
+* Implemented zone properties caching to reduce redundant API calls
+
 ## v1.0.0 - 2025-05-04 - Long overdue 1.0
 
 ### Notedworthy Changes:
