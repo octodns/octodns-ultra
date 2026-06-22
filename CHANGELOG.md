@@ -1,3 +1,9 @@
+## 1.1.0 - 2026-06-22
+
+Minor:
+* Migrate to the UltraDNS v3 REST API (v2 URL prefix deprecated) - [#74](https://github.com/octodns/octodns-ultra/pull/74)
+* ValiMonitor as a configurable provider parameter, disabled by default, ignore related records when enabled - [#73](https://github.com/octodns/octodns-ultra/pull/73)
+
 ## v1.0.0 - 2025-05-04 - Long overdue 1.0
 
 ### Notedworthy Changes:
