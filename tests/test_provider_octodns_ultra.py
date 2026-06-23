@@ -25,7 +25,7 @@ def _get_provider():
     '''
     with requests_mock() as mock:
         mock.post(
-            'https://restapi.ultradns.com/authorization/token',
+            f'{UltraProvider.ULTRA_API_BASE_URL}/{UltraProvider.ULTRA_API_VERSION}/authorization/token',
             status_code=200,
             text='{"token type": "Bearer", "refresh_token": "abc", '
             '"access_token":"123", "expires_in": "3600"}',
@@ -37,7 +37,7 @@ def _get_provider():
 
 class TestUltraProvider(TestCase):
     expected = Zone('unit.tests.', [])
-    host = 'https://restapi.ultradns.com'
+    host = UltraProvider.ULTRA_API_BASE_URL
     empty_body = [{"errorCode": 70002, "errorMessage": "Data not found."}]
 
     expected = Zone('unit.tests.', [])
@@ -47,7 +47,7 @@ class TestUltraProvider(TestCase):
     source.populate(expected)
 
     def test_login(self):
-        path = '/authorization/token'
+        path = f'/{UltraProvider.ULTRA_API_VERSION}/authorization/token'
 
         # Bad Auth
         with requests_mock() as mock:
@@ -81,7 +81,7 @@ class TestUltraProvider(TestCase):
 
     def test_get_zones(self):
         provider = _get_provider()
-        path = "/v3/zones"
+        path = f'/{UltraProvider.ULTRA_API_VERSION}/zones'
 
         # Test authorization issue
         with requests_mock() as mock:
@@ -294,8 +294,10 @@ class TestUltraProvider(TestCase):
             "resultInfo": {"totalCount": 2, "offset": 0, "returnedCount": 2},
         }
 
-        zone_path = '/v3/zones'
-        rec_path = '/zones/octodns1.test./rrsets'
+        zone_path = f'/{UltraProvider.ULTRA_API_VERSION}/zones'
+        rec_path = (
+            f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets'
+        )
         with requests_mock() as mock:
             mock.get(
                 f'{self.host}{zone_path}?limit=1000&q=zone_type%3APRIMARY',
@@ -351,14 +353,14 @@ class TestUltraProvider(TestCase):
                     text=fh.read(),
                 )
             with open('tests/fixtures/ultra-records-page-1.json') as fh:
-                rec_path = '/zones/octodns1.test./rrsets'
+                rec_path = f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets'
                 mock.get(
                     f'{self.host}{rec_path}?offset=0&limit=1000',
                     status_code=200,
                     text=fh.read(),
                 )
             with open('tests/fixtures/ultra-records-page-2.json') as fh:
-                rec_path = '/zones/octodns1.test./rrsets'
+                rec_path = f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets'
                 mock.get(
                     f'{self.host}{rec_path}?offset=10&limit=1000',
                     status_code=200,
@@ -411,7 +413,7 @@ class TestUltraProvider(TestCase):
                 # Validate multi-ip apex A record is correct
                 call(
                     'POST',
-                    '/zones/unit.tests./rrsets/A/unit.tests.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/A/unit.tests.',
                     json={
                         'ttl': 300,
                         'rdata': ['1.2.3.4', '1.2.3.5'],
@@ -425,7 +427,7 @@ class TestUltraProvider(TestCase):
                 # make sure semicolons are not escaped when sending data
                 call(
                     'POST',
-                    '/zones/unit.tests./rrsets/TXT/txt.unit.tests.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/TXT/txt.unit.tests.',
                     json={
                         'ttl': 600,
                         'rdata': [
@@ -439,7 +441,7 @@ class TestUltraProvider(TestCase):
                 # make sure we updated NS records instead of trying to create them
                 call(
                     'PUT',
-                    '/zones/unit.tests./rrsets/NS/unit.tests.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/NS/unit.tests.',
                     json={'ttl': 3600, 'rdata': ['6.2.3.4.', '7.2.3.4.']},
                 ),
             ],
@@ -506,13 +508,13 @@ class TestUltraProvider(TestCase):
                 # Validate multi-ip apex A record replaced with standard A
                 call(
                     'PUT',
-                    '/zones/octodns1.test./rrsets/A/octodns1.test.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets/A/octodns1.test.',
                     json={'ttl': 60, 'rdata': ['5.6.7.8']},
                 ),
                 # Make sure TXT value is properly updated
                 call(
                     'PUT',
-                    '/zones/octodns1.test./rrsets/TXT/txt.octodns1.test.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets/TXT/txt.octodns1.test.',
                     json={
                         'ttl': 3600,
                         'rdata': [
@@ -524,22 +526,22 @@ class TestUltraProvider(TestCase):
                 # Confirm a few of the DELETE operations properly occur
                 call(
                     'DELETE',
-                    '/zones/octodns1.test./rrsets/A/a.octodns1.test.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets/A/a.octodns1.test.',
                     json_response=False,
                 ),
                 call(
                     'DELETE',
-                    '/zones/octodns1.test./rrsets/AAAA/aaaa.octodns1.test.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets/AAAA/aaaa.octodns1.test.',
                     json_response=False,
                 ),
                 call(
                     'DELETE',
-                    '/zones/octodns1.test./rrsets/CAA/caa.octodns1.test.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets/CAA/caa.octodns1.test.',
                     json_response=False,
                 ),
                 call(
                     'DELETE',
-                    '/zones/octodns1.test./rrsets/CNAME/cname.octodns1.test.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/octodns1.test./rrsets/CNAME/cname.octodns1.test.',
                     json_response=False,
                 ),
             ],
@@ -687,7 +689,7 @@ class TestUltraProvider(TestCase):
             [
                 call(
                     'PATCH',
-                    '/zones/unit.tests.',
+                    f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests.',
                     json={'primaryCreateInfo': {'valimailMonitor': True}},
                 )
             ]
@@ -703,7 +705,7 @@ class TestUltraProvider(TestCase):
             (
                 'a',
                 'A',
-                '/zones/unit.tests./rrsets/A/a.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/A/a.unit.tests.',
                 {'ttl': 60, 'rdata': ['1.2.3.4']},
                 Record.new(
                     zone, 'a', {'ttl': 60, 'type': 'A', 'values': ['1.2.3.4']}
@@ -712,7 +714,7 @@ class TestUltraProvider(TestCase):
             (
                 'a',
                 'A',
-                '/zones/unit.tests./rrsets/A/a.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/A/a.unit.tests.',
                 {
                     'ttl': 60,
                     'rdata': ['1.2.3.4', '5.6.7.8'],
@@ -732,7 +734,7 @@ class TestUltraProvider(TestCase):
             (
                 'aaaa',
                 'AAAA',
-                '/zones/unit.tests./rrsets/AAAA/aaaa.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/AAAA/aaaa.unit.tests.',
                 {'ttl': 60, 'rdata': ['::1']},
                 Record.new(
                     zone, 'aaaa', {'ttl': 60, 'type': 'AAAA', 'values': ['::1']}
@@ -741,7 +743,7 @@ class TestUltraProvider(TestCase):
             (
                 'aaaa',
                 'AAAA',
-                '/zones/unit.tests./rrsets/AAAA/aaaa.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/AAAA/aaaa.unit.tests.',
                 {
                     'ttl': 60,
                     'rdata': ['::1', '::2'],
@@ -761,7 +763,7 @@ class TestUltraProvider(TestCase):
             (
                 'caa',
                 'CAA',
-                '/zones/unit.tests./rrsets/CAA/caa.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/CAA/caa.unit.tests.',
                 {'ttl': 60, 'rdata': ['0 issue foo.com']},
                 Record.new(
                     zone,
@@ -779,7 +781,7 @@ class TestUltraProvider(TestCase):
             (
                 'cname',
                 'CNAME',
-                '/zones/unit.tests./rrsets/CNAME/cname.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/CNAME/cname.unit.tests.',
                 {'ttl': 60, 'rdata': ['netflix.com.']},
                 Record.new(
                     zone,
@@ -791,7 +793,7 @@ class TestUltraProvider(TestCase):
             (
                 'mx',
                 'MX',
-                '/zones/unit.tests./rrsets/MX/mx.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/MX/mx.unit.tests.',
                 {
                     'ttl': 60,
                     'rdata': ['1 mx1.unit.tests.', '1 mx2.unit.tests.'],
@@ -813,7 +815,7 @@ class TestUltraProvider(TestCase):
             (
                 'ns',
                 'NS',
-                '/zones/unit.tests./rrsets/NS/ns.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/NS/ns.unit.tests.',
                 {'ttl': 60, 'rdata': ['ns1.unit.tests.', 'ns2.unit.tests.']},
                 Record.new(
                     zone,
@@ -829,7 +831,7 @@ class TestUltraProvider(TestCase):
             (
                 'ptr',
                 'PTR',
-                '/zones/unit.tests./rrsets/PTR/ptr.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/PTR/ptr.unit.tests.',
                 {'ttl': 60, 'rdata': ['a.unit.tests.']},
                 Record.new(
                     zone,
@@ -841,7 +843,7 @@ class TestUltraProvider(TestCase):
             (
                 '_srv._tcp',
                 'SRV',
-                '/zones/unit.tests./rrsets/SRV/_srv._tcp.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/SRV/_srv._tcp.unit.tests.',
                 {'ttl': 60, 'rdata': ['10 20 443 target.unit.tests.']},
                 Record.new(
                     zone,
@@ -864,7 +866,7 @@ class TestUltraProvider(TestCase):
             (
                 'txt',
                 'TXT',
-                '/zones/unit.tests./rrsets/TXT/txt.unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/TXT/txt.unit.tests.',
                 {'ttl': 60, 'rdata': ['abc', 'def']},
                 Record.new(
                     zone,
@@ -876,7 +878,7 @@ class TestUltraProvider(TestCase):
             (
                 '',
                 'ALIAS',
-                '/zones/unit.tests./rrsets/APEXALIAS/unit.tests.',
+                f'/{UltraProvider.ULTRA_API_VERSION}/zones/unit.tests./rrsets/APEXALIAS/unit.tests.',
                 {'ttl': 60, 'rdata': ['target.unit.tests.']},
                 Record.new(
                     zone,
