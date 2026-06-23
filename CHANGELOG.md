@@ -1,3 +1,8 @@
+## 1.1.1 - 2026-06-23
+
+Patch:
+* Update API base URL and pin UltraDNS API version - [#79](https://github.com/octodns/octodns-ultra/pull/79)
+
 ## 1.1.0 - 2026-06-22
 
 Minor:
