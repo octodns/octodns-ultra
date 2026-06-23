@@ -74,6 +74,9 @@ class UltraProvider(BaseProvider):
     ZONE_REQUEST_LIMIT = 1000
     RRSET_REQUEST_LIMIT = 1000
 
+    ULTRA_API_VERSION = 'v3'
+    ULTRA_API_BASE_URL = 'https://api.ultradns.com'
+
     def _request(
         self,
         method,
@@ -85,7 +88,7 @@ class UltraProvider(BaseProvider):
     ):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
-        url = f'{self._base_uri}{path}'
+        url = f'{self.ULTRA_API_BASE_URL}{path}'
         resp = self._sess.request(
             method,
             url,
@@ -144,7 +147,7 @@ class UltraProvider(BaseProvider):
         '''
         Get an authorization token by logging in using the provided credentials
         '''
-        path = '/authorization/token'
+        path = f'/{self.ULTRA_API_VERSION}/authorization/token'
         data = {
             'grant_type': 'password',
             'username': username,
@@ -178,7 +181,6 @@ class UltraProvider(BaseProvider):
 
         super().__init__(id, *args, **kwargs)
 
-        self._base_uri = 'https://restapi.ultradns.com'
         self._sess = Session()
         self._sess.headers.update(
             {
@@ -203,7 +205,9 @@ class UltraProvider(BaseProvider):
             paging = True
             while paging:
                 try:
-                    resp = self._get('/v3/zones', params=data)
+                    resp = self._get(
+                        f'/{self.ULTRA_API_VERSION}/zones', params=data
+                    )
                 except UltraNoZonesExistException:
                     paging = False
                     continue
@@ -308,9 +312,8 @@ class UltraProvider(BaseProvider):
                 return []
 
             records = []
-            # Unversioned: lists rrsets. NB /v3/zones/{z}/rrsets is a
-            # different op (pools), not this one.
-            path = f'/zones/{zone.name}/rrsets'
+
+            path = f'/{self.ULTRA_API_VERSION}/zones/{zone.name}/rrsets'
             offset = 0
             limit = self.RRSET_REQUEST_LIMIT
             paging = True
@@ -376,7 +379,7 @@ class UltraProvider(BaseProvider):
 
     def _update_zone_valimail_monitor(self, zone_name, valimail_monitor):
         self._patch(
-            f'/zones/{zone_name}',
+            f'/{self.ULTRA_API_VERSION}/zones/{zone_name}',
             json={
                 'primaryCreateInfo': {'valimailMonitor': bool(valimail_monitor)}
             },
@@ -494,7 +497,7 @@ class UltraProvider(BaseProvider):
                     'valimailMonitor': self._valimail,
                 },
             }
-            self._post('/v3/zones', json=data)
+            self._post(f'/{self.ULTRA_API_VERSION}/zones', json=data)
             self.zones[name] = {'name': name, 'valimailMonitor': self._valimail}
             self._zone_records[name] = {}
             changes = self._force_root_ns_update(changes)
@@ -577,8 +580,7 @@ class UltraProvider(BaseProvider):
         else:
             record_type = record._type
 
-        # Unversioned: rrset create/update/delete has no /v3 form.
-        path = f'/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
+        path = f'/{self.ULTRA_API_VERSION}/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
         contents_for = getattr(self, f'_contents_for_{record._type}')
         return path, contents_for(record)
 
@@ -633,7 +635,7 @@ class UltraProvider(BaseProvider):
                     existing_type = "APEXALIAS"
 
                 path = (
-                    f'/zones/{zone_name}/rrsets/{existing_type}/'
+                    f'/{self.ULTRA_API_VERSION}/zones/{zone_name}/rrsets/{existing_type}/'
                     + existing.fqdn
                 )
                 self._delete(path, json_response=False)
