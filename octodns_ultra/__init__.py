@@ -47,9 +47,7 @@ class UltraClientUnauthorized(UltraClientException):
 
 class UltraProvider(BaseProvider):
     '''
-    UltraDNS provider (v3 REST API: https://docs.ultradns.com/)
-
-    Zone list/create use /v3; auth and rrsets use unversioned paths.
+    UltraDNS provider (REST API: https://docs.ultradns.com/)
     '''
 
     RECORDS_TO_TYPE = {
@@ -74,7 +72,6 @@ class UltraProvider(BaseProvider):
     ZONE_REQUEST_LIMIT = 1000
     RRSET_REQUEST_LIMIT = 1000
 
-    ULTRA_API_VERSION = 'v3'
     ULTRA_API_BASE_URL = 'https://api.ultradns.com'
 
     def _request(
@@ -147,7 +144,7 @@ class UltraProvider(BaseProvider):
         '''
         Get an authorization token by logging in using the provided credentials
         '''
-        path = f'/{self.ULTRA_API_VERSION}/authorization/token'
+        path = '/authorization/token'
         data = {
             'grant_type': 'password',
             'username': username,
@@ -205,9 +202,7 @@ class UltraProvider(BaseProvider):
             paging = True
             while paging:
                 try:
-                    resp = self._get(
-                        f'/{self.ULTRA_API_VERSION}/zones', params=data
-                    )
+                    resp = self._get('/zones', params=data)
                 except UltraNoZonesExistException:
                     paging = False
                     continue
@@ -313,7 +308,7 @@ class UltraProvider(BaseProvider):
 
             records = []
 
-            path = f'/{self.ULTRA_API_VERSION}/zones/{zone.name}/rrsets'
+            path = f'/zones/{zone.name}/rrsets'
             offset = 0
             limit = self.RRSET_REQUEST_LIMIT
             paging = True
@@ -379,7 +374,7 @@ class UltraProvider(BaseProvider):
 
     def _update_zone_valimail_monitor(self, zone_name, valimail_monitor):
         self._patch(
-            f'/{self.ULTRA_API_VERSION}/zones/{zone_name}',
+            f'/zones/{zone_name}',
             json={
                 'primaryCreateInfo': {'valimailMonitor': bool(valimail_monitor)}
             },
@@ -497,7 +492,7 @@ class UltraProvider(BaseProvider):
                     'valimailMonitor': self._valimail,
                 },
             }
-            self._post(f'/{self.ULTRA_API_VERSION}/zones', json=data)
+            self._post('/zones', json=data)
             self.zones[name] = {'name': name, 'valimailMonitor': self._valimail}
             self._zone_records[name] = {}
             changes = self._force_root_ns_update(changes)
@@ -580,7 +575,7 @@ class UltraProvider(BaseProvider):
         else:
             record_type = record._type
 
-        path = f'/{self.ULTRA_API_VERSION}/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
+        path = f'/zones/{zone_name}/rrsets/{record_type}/{record.fqdn}'
         contents_for = getattr(self, f'_contents_for_{record._type}')
         return path, contents_for(record)
 
@@ -635,7 +630,7 @@ class UltraProvider(BaseProvider):
                     existing_type = "APEXALIAS"
 
                 path = (
-                    f'/{self.ULTRA_API_VERSION}/zones/{zone_name}/rrsets/{existing_type}/'
+                    f'/zones/{zone_name}/rrsets/{existing_type}/'
                     + existing.fqdn
                 )
                 self._delete(path, json_response=False)
