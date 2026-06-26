@@ -1,3 +1,8 @@
+## 1.1.2 - 2026-06-26
+
+Patch:
+* Update API endpoints to match latest UltraDNS documentation - [#81](https://github.com/octodns/octodns-ultra/pull/81)
+
 ## 1.1.1 - 2026-06-23
 
 Patch:
