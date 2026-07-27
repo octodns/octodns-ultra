@@ -557,10 +557,7 @@ class UltraProvider(BaseProvider):
     def _contents_for_CAA(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': [
-                f'{x.flags} {x.tag} {self._escape_semicolons(x.value)}'
-                for x in record.values
-            ],
+            'rdata': [f'{x.flags} {x.tag} {x.value}' for x in record.values],
         }
 
     def _contents_for_MX(self, record):
@@ -637,6 +634,3 @@ class UltraProvider(BaseProvider):
                     + existing.fqdn
                 )
                 self._delete(path, json_response=False)
-
-    def _escape_semicolons(self, value):
-        return value.replace(';', '\\;')
