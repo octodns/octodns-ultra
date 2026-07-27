@@ -762,7 +762,14 @@ class TestUltraProvider(TestCase):
                 'caa',
                 'CAA',
                 '/zones/unit.tests./rrsets/CAA/caa.unit.tests.',
-                {'ttl': 60, 'rdata': ['0 issue foo.com']},
+                {
+                    'ttl': 60,
+                    'rdata': [
+                        '0 issue ";"',
+                        '0 issue "fakeca.com; cansignhttpexchanges=yes"',
+                        '0 issue "foo.com"',
+                    ],
+                },
                 Record.new(
                     zone,
                     'caa',
@@ -770,7 +777,13 @@ class TestUltraProvider(TestCase):
                         'ttl': 60,
                         'type': 'CAA',
                         'values': [
-                            {'flags': 0, 'tag': 'issue', 'value': 'foo.com'}
+                            {'flags': 0, 'tag': 'issue', 'value': ';'},
+                            {'flags': 0, 'tag': 'issue', 'value': 'foo.com'},
+                            {
+                                'flags': 0,
+                                'tag': 'issue',
+                                'value': 'fakeca.com; cansignhttpexchanges=yes',
+                            },
                         ],
                     },
                 ),

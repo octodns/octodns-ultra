@@ -12,6 +12,7 @@ from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
 from octodns.record import Create, Record, Update
+from octodns.record.caa import CaaValue
 
 # TODO: remove __VERSION__ with the next major version release
 __version__ = __VERSION__ = '1.1.2'
@@ -267,12 +268,7 @@ class UltraProvider(BaseProvider):
             'type': _type,
             'ttl': records['ttl'],
             'values': [
-                {
-                    'flags': x.split()[0],
-                    'tag': x.split()[1],
-                    'value': x.split()[2].strip('"'),
-                }
-                for x in records['rdata']
+                CaaValue.parse_rdata_text(value=x) for x in records['rdata']
             ],
         }
 
@@ -557,7 +553,7 @@ class UltraProvider(BaseProvider):
     def _contents_for_CAA(self, record):
         return {
             'ttl': record.ttl,
-            'rdata': [f'{x.flags} {x.tag} {x.value}' for x in record.values],
+            'rdata': [f'{x.flags} {x.tag} "{x.value}"' for x in record.values],
         }
 
     def _contents_for_MX(self, record):
