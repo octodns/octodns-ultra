@@ -1,3 +1,8 @@
+## 1.1.3 - 2026-07-27
+
+Patch:
+* Fix CAA parsing - [#85](https://github.com/octodns/octodns-ultra/pull/85)
+
 ## 1.1.2 - 2026-06-26
 
 Patch:

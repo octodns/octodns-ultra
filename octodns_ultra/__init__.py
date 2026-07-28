@@ -15,7 +15,7 @@ from octodns.record import Create, Record, Update
 from octodns.record.caa import CaaValue
 
 # TODO: remove __VERSION__ with the next major version release
-__version__ = __VERSION__ = '1.1.2'
+__version__ = __VERSION__ = '1.1.3'
 
 
 class UltraClientException(ProviderException):
