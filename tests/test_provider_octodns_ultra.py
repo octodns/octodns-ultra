@@ -26,8 +26,16 @@ def _get_provider():
     provider = UltraProvider(
         'test', 'testacct', 'user', 'pass', strict_supports=False
     )
-    provider._access_token = '123'
-    provider._sess.headers.update({'Authorization': 'Bearer 123'})
+
+    with requests_mock() as mock:
+        mock.post(
+            f'{UltraProvider.ULTRA_API_BASE_URL}/authorization/token',
+            status_code=200,
+            text='{"token type": "Bearer", "refresh_token": "abc", '
+            '"access_token":"123", "expires_in": "3600"}',
+        )
+        provider._login('user', 'pass')
+
     return provider
 
 
