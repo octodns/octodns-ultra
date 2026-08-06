@@ -165,7 +165,7 @@ class UltraProvider(BaseProvider):
         password,
         timeout=TIMEOUT,
         valimail=False,
-        dnssec=False,
+        dnssec=None,
         *args,
         **kwargs,
     ):
@@ -189,7 +189,7 @@ class UltraProvider(BaseProvider):
         self._account = account
         self._timeout = timeout
         self._valimail = valimail
-        self._dnssec: bool = dnssec
+        self._dnssec: bool | None = dnssec
 
         self._login(username, password)
 
@@ -221,8 +221,10 @@ class UltraProvider(BaseProvider):
             for zone in zones:
                 self._zones[zone['properties']['name']] = {
                     'name': zone['properties']['name'],
-                    'valimailMonitor': zone['properties']['valimailMonitor'],
-                    'dnssecStatus': zone['properties']['dnssecStatus'],
+                    'valimailMonitor': zone['properties'].get(
+                        'valimailMonitor'
+                    ),
+                    'dnssecStatus': zone['properties'].get('dnssecStatus'),
                 }
 
         return self._zones
@@ -368,31 +370,32 @@ class UltraProvider(BaseProvider):
         ):
             meta_changes['valimailMonitor'] = valimail_monitor
 
-        if dnssec_status := self._evaluate_zone_property_changes(
-            zone_name, 'dnssecStatus', "SIGNED" if self._dnssec else "UNSIGNED"
+        if self._dnssec is not None and (
+            dnssec_status := self._evaluate_zone_property_changes(
+                zone_name,
+                'dnssecStatus',
+                "SIGNED" if self._dnssec else "UNSIGNED",
+            )
         ):
             meta_changes['dnssecStatus'] = dnssec_status
 
         return meta_changes if meta_changes else None
 
     def _evaluate_zone_property_changes(
-        self, zone_name: str, property: str, desired: str | bool | int
+        self, zone_name: str, property_name: str, desired: str | bool | int
     ) -> dict | None:
         '''
         Evaluate if a zone property has changed and return a dictionary with the current and desired values if they differ, otherwise return None.
         '''
 
-        if zone_name not in self.list_zones():
-            return None
-
         current_value: str | bool | int = self.zones.get(zone_name, {}).get(
-            property
+            property_name
         )
 
         if current_value != desired:
             self.log.info(
                 '_evaluate_zone_property_changes: %s change detected, current=%s, desired=%s',
-                property,
+                property_name,
                 current_value,
                 desired,
             )
@@ -400,7 +403,7 @@ class UltraProvider(BaseProvider):
         else:
             self.log.debug(
                 '_evaluate_zone_property_changes: %s no change, current=%s, desired=%s',
-                property,
+                property_name,
                 current_value,
                 desired,
             )
@@ -522,12 +525,12 @@ class UltraProvider(BaseProvider):
 
         return super()._include_change(change)
 
-    def _apply_Zone(self, zone_name: str):
+    def _create_zone(self, zone_name: str):
         '''
         Create a new zone in UltraDNS if it does not already exist.
         '''
 
-        self.log.info('_apply_Zone: zone=%s', zone_name)
+        self.log.info('_create_zone: zone=%s', zone_name)
 
         data: dict = {
             'properties': {
@@ -546,10 +549,14 @@ class UltraProvider(BaseProvider):
         if self._dnssec:
             self._apply_dnssec(zone_name, True)
 
+        dnssec_status = None
+        if self._dnssec is not None:
+            dnssec_status = 'SIGNED' if self._dnssec else 'UNSIGNED'
+
         self.zones[zone_name] = {
             'name': zone_name,
             'valimailMonitor': self._valimail,
-            'dnssecStatus': "SIGNED" if self._dnssec else "UNSIGNED",
+            'dnssecStatus': dnssec_status,
         }
 
         self._zone_records[zone_name] = {}
@@ -567,26 +574,18 @@ class UltraProvider(BaseProvider):
         if name not in self.list_zones():
             self.log.debug('_apply:   no matching zone, creating')
 
-            self._apply_Zone(name)
+            self._create_zone(name)
 
             changes = self._force_root_ns_update(changes)
             created = True
 
         meta = getattr(plan, 'meta', None)
         valimail_meta = meta.get('valimailMonitor') if meta else None
-        if (
-            not created
-            and valimail_meta
-            and valimail_meta.get('current') != valimail_meta.get('desired')
-        ):
+        if not created and valimail_meta:
             self._apply_valimail_monitor(name, valimail_meta['desired'])
 
         dnssec_meta = meta.get('dnssecStatus') if meta else None
-        if (
-            not created
-            and dnssec_meta
-            and dnssec_meta.get('current') != dnssec_meta.get('desired')
-        ):
+        if self._dnssec is not None and not created and dnssec_meta:
             desired_dnssec = dnssec_meta.get('desired')
             self._apply_dnssec(name, desired_dnssec == 'SIGNED')
 

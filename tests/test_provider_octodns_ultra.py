@@ -154,6 +154,44 @@ class TestUltraProvider(TestCase):
             self.assertEqual(1, len(zones))
             self.assertEqual('testzone123.com.', zones[0])
 
+        # Missing optional zone properties should not break zone loading
+        provider._zones = None
+        with requests_mock() as mock:
+            payload = {
+                "cursorInfo": {},
+                "zones": [
+                    {
+                        "properties": {
+                            "name": "testzone124.com.",
+                            "accountName": "testaccount",
+                            "type": "PRIMARY",
+                            "status": "ACTIVE",
+                            "owner": "user",
+                            "resourceRecordCount": 5,
+                            "lastModifiedDateTime": "2020-06-19T00:47Z",
+                        }
+                    }
+                ],
+            }
+
+            mock.get(
+                f'{self.host}{path}',
+                status_code=200,
+                headers={'Authorization': 'Bearer 123'},
+                json=payload,
+            )
+            zones = provider.zones
+            self.assertEqual(1, mock.call_count)
+            self.assertEqual(1, len(zones))
+            self.assertEqual(
+                {
+                    'name': 'testzone124.com.',
+                    'valimailMonitor': None,
+                    'dnssecStatus': None,
+                },
+                zones['testzone124.com.'],
+            )
+
         # Test different paging behavior
         provider._zones = None
         with requests_mock() as mock:
@@ -689,6 +727,15 @@ class TestUltraProvider(TestCase):
         provider._valimail = False
         self.assertIsNone(provider._plan_meta(existing, desired, []))
 
+        provider._zones = {
+            'unit.tests.': {
+                'name': 'unit.tests.',
+                'valimailMonitor': False,
+                'dnssecStatus': 'SIGNED',
+            }
+        }
+        self.assertIsNone(provider._plan_meta(existing, desired, []))
+
         provider._dnssec = True
         provider._zones = {
             'unit.tests.': {
@@ -702,18 +749,11 @@ class TestUltraProvider(TestCase):
             provider._plan_meta(existing, desired, []),
         )
 
-        provider._zones = {}
+        provider._dnssec = False
         self.assertIsNone(provider._plan_meta(existing, desired, []))
 
-    def test_evaluate_zone_property_changes_missing_zone(self):
-        provider = _get_provider()
         provider._zones = {}
-
-        self.assertIsNone(
-            provider._evaluate_zone_property_changes(
-                'unit.tests.', 'dnssecStatus', 'SIGNED'
-            )
-        )
+        self.assertIsNone(provider._plan_meta(existing, desired, []))
 
     def test_apply_updates_valimail_monitor_from_plan_meta(self):
         provider = _get_provider()
@@ -966,6 +1006,7 @@ class TestUltraProvider(TestCase):
         Test that a zone with DNSSEC disabled can be enabled
         '''
         provider = _get_provider()
+        provider._dnssec = True
         provider._zones = {
             'unit.tests.': {
                 'name': 'unit.tests.',
@@ -994,6 +1035,7 @@ class TestUltraProvider(TestCase):
         Test that a zone with DNSSEC enabled can be disabled
         '''
         provider = _get_provider()
+        provider._dnssec = False
         provider._zones = {
             'unit.tests.': {
                 'name': 'unit.tests.',
@@ -1016,56 +1058,6 @@ class TestUltraProvider(TestCase):
             [call('DELETE', '/zones/unit.tests./dnssec', json_response=False)]
         )
         self.assertEqual(1, provider._request.call_count)
-
-    def test_dnssec_no_change_if_enabled(self):
-        '''
-        Test that a zone with DNSSEC enabled and desired to remain enabled does not trigger a change
-        '''
-        provider = _get_provider()
-        provider._zones = {
-            'unit.tests.': {
-                'name': 'unit.tests.',
-                'valimailMonitor': False,
-                'dnssecStatus': 'SIGNED',
-            }
-        }
-        provider._request = Mock()
-
-        plan = Mock()
-        plan.desired = Zone('unit.tests.', [])
-        plan.changes = []
-        plan.meta = {'dnssecStatus': {'current': 'SIGNED', 'desired': 'SIGNED'}}
-
-        provider._apply(plan)
-
-        provider._request.assert_has_calls([])
-        self.assertEqual(0, provider._request.call_count)
-
-    def test_dnssec_no_change_if_disabled(self):
-        '''
-        Test that a zone with DNSSEC disabled and desired to remain disabled does not trigger a change
-        '''
-        provider = _get_provider()
-        provider._zones = {
-            'unit.tests.': {
-                'name': 'unit.tests.',
-                'valimailMonitor': False,
-                'dnssecStatus': 'UNSIGNED',
-            }
-        }
-        provider._request = Mock()
-
-        plan = Mock()
-        plan.desired = Zone('unit.tests.', [])
-        plan.changes = []
-        plan.meta = {
-            'dnssecStatus': {'current': 'UNSIGNED', 'desired': 'UNSIGNED'}
-        }
-
-        provider._apply(plan)
-
-        provider._request.assert_has_calls([])
-        self.assertEqual(0, provider._request.call_count)
 
     def test_dnssec_enabled_on_zone_creation(self):
         '''
@@ -1105,3 +1097,67 @@ class TestUltraProvider(TestCase):
             ]
         )
         self.assertEqual(2, provider._request.call_count)
+
+    def test_dnssec_ignored_when_unmanaged(self):
+        '''
+        Test that dnssec=None ignores DNSSEC meta changes in apply.
+        '''
+        provider = _get_provider()
+        provider._dnssec = None
+        provider._zones = {
+            'unit.tests.': {
+                'name': 'unit.tests.',
+                'valimailMonitor': False,
+                'dnssecStatus': 'UNSIGNED',
+            }
+        }
+        provider._request = Mock()
+
+        plan = Mock()
+        plan.desired = Zone('unit.tests.', [])
+        plan.changes = []
+        plan.meta = {
+            'dnssecStatus': {'current': 'UNSIGNED', 'desired': 'SIGNED'}
+        }
+
+        provider._apply(plan)
+
+        self.assertEqual(0, provider._request.call_count)
+
+    def test_dnssec_unmanaged_on_zone_creation(self):
+        '''
+        Test that dnssec=None does not manage DNSSEC when creating a zone.
+        '''
+        provider = _get_provider()
+        provider._dnssec = None
+        provider._zones = {}
+        provider._request = Mock()
+
+        plan = Mock()
+        plan.desired = Zone('unit.tests.', [])
+        plan.changes = []
+        plan.meta = {}
+
+        provider._apply(plan)
+
+        provider._request.assert_has_calls(
+            [
+                call(
+                    'POST',
+                    '/zones',
+                    json={
+                        'properties': {
+                            'name': 'unit.tests.',
+                            'accountName': 'testacct',
+                            'type': 'PRIMARY',
+                        },
+                        'primaryCreateInfo': {
+                            'createType': 'NEW',
+                            'valimailMonitor': False,
+                        },
+                    },
+                )
+            ]
+        )
+        self.assertEqual(1, provider._request.call_count)
+        self.assertIsNone(provider.zones['unit.tests.']['dnssecStatus'])
