@@ -77,7 +77,7 @@ More information on Valimail Monitor can be found in the [UltraDNS documentation
 ##### DNSSEC
 
 > [!IMPORTANT]
-> By default DNSSEC will be set to "None", meaning the provider will ignore this setting and maintain current state.
+> By default DNSSEC is set to "None", meaning the provider will ignore this setting and maintain current state. Set to "true" or "false" to have the provider manage DNSSEC status.
 
 DNSSEC in UltraDNS is a zone level toggle. Enabling it will create UltraDNS managed DNSSEC related records such as KSK, ZSK, DNSKEY and DS.
 
