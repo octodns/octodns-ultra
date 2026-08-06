@@ -19,7 +19,7 @@ Pinning specific versions or SHAs is recommended to avoid unplanned upgrades.
 ```
 # Start with the latest versions and don't just copy what's here
 octodns==0.21.1
-octodns-ultra==1.2.0
+octodns-ultra==1.1.3
 ```
 
 ##### SHAs
@@ -44,7 +44,7 @@ providers:
     password: env/ULTRA_PASSWORD
     # Valimail enabled on created zones (optional, default=False)
     # valimail: true
-    # Enable UltraDNS managed DNSSEC (optional, default=False)
+    # Enable UltraDNS managed DNSSEC (optional, default=None)
     # dnssec: true
 ```
 
@@ -76,11 +76,14 @@ More information on Valimail Monitor can be found in the [UltraDNS documentation
 
 ##### DNSSEC
 
+> [!IMPORTANT]
+> By default DNSSEC will be set to "None", meaning the provider will ignore this setting and maintain current state.
+
 DNSSEC in UltraDNS is a zone level toggle. Enabling it will create UltraDNS managed DNSSEC related records such as KSK, ZSK, DNSKEY and DS.
 
 More information on UltraDNS's DNSSEC implementation can be found in the [UltraDNS documentation](https://docs.ultradns.com/Content/REST%20API/Content/REST%20API/Zone%20DNSSEC%20APIs.htm).
 
-To have some zones DNSSEC enabled and others not, the recommended implementation is to have two seperate providers configured, eg:
+To have some zones DNSSEC enabled and others not, the recommended implementation is to have two separate providers configured, eg:
 
 
 ```yaml
@@ -90,7 +93,6 @@ providers:
     account: env/ULTRA_ACCOUNT
     username: env/ULTRA_USERNAME
     password: env/ULTRA_PASSWORD
-    dnssec: true
   ultra_dnssec:
     class: octodns_ultra.UltraProvider
     account: env/ULTRA_ACCOUNT
