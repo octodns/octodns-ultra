@@ -83,7 +83,13 @@ class UltraProvider(BaseProvider):
         data=None,
         json=None,
         json_response=True,
+        allow_login=True,
     ):
+
+        if not self._access_token and allow_login:
+            self.log.debug('_request: access_token not set, calling _login()')
+            self._login(self._username, self._password)
+
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = f'{self.ULTRA_API_BASE_URL}{path}'
@@ -152,9 +158,12 @@ class UltraProvider(BaseProvider):
             'password': password,
         }
 
-        resp = self._post(path, data=data)
+        resp = self._post(path, data=data, allow_login=False)
+
+        self._access_token = resp['access_token']
+
         self._sess.headers.update(
-            {'Authorization': f'Bearer {resp["access_token"]}'}
+            {'Authorization': f'Bearer {self._access_token}'}
         )
 
     def __init__(
@@ -186,10 +195,11 @@ class UltraProvider(BaseProvider):
             }
         )
         self._account = account
+        self._username: str = username
+        self._password: str = password
+        self._access_token: str | None = None
         self._timeout = timeout
         self._valimail = valimail
-
-        self._login(username, password)
 
         self._zones = None
         self._zone_records = {}
