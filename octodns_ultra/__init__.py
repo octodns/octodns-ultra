@@ -406,7 +406,9 @@ class UltraProvider(BaseProvider):
             )
             return None
 
-    def _apply_valimail_monitor(self, zone_name: str, valimail_monitor: bool) -> None:
+    def _apply_valimail_monitor(
+        self, zone_name: str, valimail_monitor: bool
+    ) -> None:
         '''
         Enable or disable Valimail monitoring for a zone.
         '''
