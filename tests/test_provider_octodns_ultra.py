@@ -25,8 +25,12 @@ from octodns_ultra import (
 
 def _get_provider():
     '''
-    Helper to return a provider after going through authentication sequence
+    Helper to return a provider with an already-cached auth token
     '''
+    provider = UltraProvider(
+        'test', 'testacct', 'user', 'pass', strict_supports=False
+    )
+
     with requests_mock() as mock:
         mock.post(
             f'{UltraProvider.ULTRA_API_BASE_URL}/authorization/token',
@@ -34,9 +38,9 @@ def _get_provider():
             text='{"token type": "Bearer", "refresh_token": "abc", '
             '"access_token":"123", "expires_in": "3600"}',
         )
-        return UltraProvider(
-            'test', 'testacct', 'user', 'pass', strict_supports=False
-        )
+        provider._login('user', 'pass')
+
+    return provider
 
 
 class TestUltraProvider(TestCase):
@@ -60,9 +64,14 @@ class TestUltraProvider(TestCase):
                 status_code=401,
                 text='{"errorCode": 60001}',
             )
+            provider = UltraProvider(
+                'test', 'account', 'user', 'wrongpass', strict_supports=False
+            )
+            self.assertEqual(0, mock.call_count)
             with self.assertRaises(Exception) as ctx:
-                UltraProvider('test', 'account', 'user', 'wrongpass')
+                provider._get('/zones')
             self.assertEqual('Unauthorized', str(ctx.exception))
+            self.assertEqual(1, mock.call_count)
 
         # Good Auth
         with requests_mock() as mock:
@@ -74,13 +83,28 @@ class TestUltraProvider(TestCase):
                 text='{"token type": "Bearer", "refresh_token": "abc", '
                 '"access_token":"123", "expires_in": "3600"}',
             )
-            UltraProvider('test', 'account', 'user', 'rightpass')
-            self.assertEqual(1, mock.call_count)
+            mock.get(
+                f'{self.host}/foo',
+                status_code=200,
+                headers={'Authorization': 'Bearer 123'},
+                json={},
+            )
+            provider = UltraProvider(
+                'test', 'account', 'user', 'rightpass', strict_supports=False
+            )
+            self.assertEqual(0, mock.call_count)
+            provider._get('/foo')
+            self.assertEqual('123', provider._access_token)
+            self.assertEqual(
+                'Bearer 123', provider._sess.headers['Authorization']
+            )
+            self.assertEqual(2, mock.call_count)
             expected_payload = (
                 "grant_type=password&username=user&" "password=rightpass"
             )
             self.assertEqual(
-                parse_qs(mock.last_request.text), parse_qs(expected_payload)
+                parse_qs(mock.request_history[0].text),
+                parse_qs(expected_payload),
             )
 
     def test_get_zones(self):
