@@ -4,6 +4,8 @@
 
 from collections import defaultdict
 from logging import getLogger
+from time import monotonic, sleep
+from typing import Any
 
 from requests import Session
 from requests.exceptions import HTTPError
@@ -69,9 +71,9 @@ class UltraProvider(BaseProvider):
     SUPPORTS_ROOT_NS = True
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
-    TIMEOUT = 5
     ZONE_REQUEST_LIMIT = 1000
     RRSET_REQUEST_LIMIT = 1000
+    TASK_STATUS_POLL_INTERVAL = 1
 
     ULTRA_API_BASE_URL = 'https://api.ultradns.com'
 
@@ -99,6 +101,18 @@ class UltraProvider(BaseProvider):
 
         if resp.status_code == 401:
             raise UltraClientUnauthorized()
+
+        if resp.status_code == 202:
+            task_id = resp.headers.get('x-task-id')
+
+            if not task_id:
+                raise UltraClientException(
+                    'No task ID returned for async operation'
+                )
+
+            self.log.debug('_request:   async task_id=%s', task_id)
+
+            return self._await_task(task_id, json_response=json_response)
 
         if json_response:
             payload = resp.json()
@@ -141,6 +155,59 @@ class UltraProvider(BaseProvider):
     def _patch(self, path, **kwargs):
         return self._request('PATCH', path, **kwargs)
 
+    def _await_task(self, task_id: str, json_response=True) -> Any:
+        '''
+        Wait for a task to complete by polling the task status until it is
+        complete and return its result.
+        '''
+
+        # Calculate the deadline for the task based on the current time and the timeout value
+        start_time: float = monotonic()
+        deadline: float = start_time + self._timeout
+
+        path = f'/tasks/{task_id}'
+
+        while True:
+            resp = self._get(path)
+            code: str = resp['code']
+            self.log.debug('_await_task: task_id=%s, status=%s', task_id, code)
+
+            if code == 'COMPLETE':
+                # If the task is complete, check if there is a result URI in the response.
+                result_uri = resp.get('resultUri')
+
+                # if there is a result URI, fetch the result
+                if result_uri:
+                    # strip the base URL from the result URI to get the path for the result
+                    path: str = result_uri[len(self.ULTRA_API_BASE_URL) :]
+                    return self._get(path, json_response=json_response)
+
+                # if there is no result URI, return the content of the response based on the json_response flag
+                if json_response:
+                    return resp
+
+                # if json_response is False, return an empty string
+                return resp.get('code', '')
+
+            if code == 'ERROR':
+                raise UltraClientException(
+                    f'Task {task_id} failed: {resp.get("message", "No message provided")}'
+                )
+            if code not in {'PENDING', 'IN_PROCESS'}:
+                raise UltraClientException(
+                    f'Task {task_id} returned unexpected status: {code}'
+                )
+
+            # check if the current time has exceeded the deadline for the task
+            if monotonic() >= deadline:
+                raise UltraClientException(
+                    f'Task {task_id} did not complete within '
+                    f'{self._timeout} seconds'
+                )
+
+            # pause for a short interval before polling the task status again
+            sleep(self.TASK_STATUS_POLL_INTERVAL)
+
     def _login(self, username, password):
         '''
         Get an authorization token by logging in using the provided credentials
@@ -163,7 +230,7 @@ class UltraProvider(BaseProvider):
         account,
         username,
         password,
-        timeout=TIMEOUT,
+        timeout=30,
         valimail=False,
         dnssec=None,
         *args,

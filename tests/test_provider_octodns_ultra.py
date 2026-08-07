@@ -5,7 +5,7 @@
 from json import load as json_load
 from os.path import dirname, join
 from unittest import TestCase
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 from urllib.parse import parse_qs
 
 from requests import HTTPError
@@ -16,7 +16,11 @@ from octodns.provider.yaml import YamlProvider
 from octodns.record import Record
 from octodns.zone import Zone
 
-from octodns_ultra import UltraNoZonesExistException, UltraProvider
+from octodns_ultra import (
+    UltraClientException,
+    UltraNoZonesExistException,
+    UltraProvider,
+)
 
 
 def _get_provider():
@@ -300,6 +304,142 @@ class TestUltraProvider(TestCase):
                 headers={'Authorization': 'Bearer 123'},
             )
             provider._delete(path, json_response=False)
+
+    def test_request_async(self):
+        provider = _get_provider()
+        path = '/foo'
+        task_id = 'task-123'
+        task_payload = {
+            'code': 'COMPLETE',
+            'message': 'Processing complete',
+            'resultUri': f'{self.host}/tasks/{task_id}/result',
+        }
+        payload = {'a': 1}
+
+        with requests_mock() as mock:
+            mock.post(
+                f'{self.host}{path}',
+                status_code=202,
+                headers={'Authorization': 'Bearer 123', 'x-task-id': task_id},
+            )
+            mock.get(
+                f'{self.host}/tasks/{task_id}',
+                status_code=200,
+                headers={'Authorization': 'Bearer 123'},
+                json=task_payload,
+            )
+            mock.get(
+                f'{self.host}/tasks/{task_id}/result',
+                status_code=200,
+                headers={'Authorization': 'Bearer 123'},
+                json=payload,
+            )
+            self.assertEqual(payload, provider._post(path, json=payload))
+
+        with requests_mock() as mock:
+            mock.delete(
+                f'{self.host}{path}',
+                status_code=202,
+                headers={'Authorization': 'Bearer 123', 'x-task-id': task_id},
+            )
+            mock.get(
+                f'{self.host}/tasks/{task_id}',
+                status_code=200,
+                headers={'Authorization': 'Bearer 123'},
+                json={'code': 'COMPLETE', 'message': 'Processing complete'},
+            )
+            self.assertEqual(
+                'COMPLETE', provider._delete(path, json_response=False)
+            )
+
+    def test_request_async_missing_task_id(self):
+        provider = _get_provider()
+        path = '/foo'
+
+        with requests_mock() as mock:
+            mock.post(
+                f'{self.host}{path}',
+                status_code=202,
+                headers={'Authorization': 'Bearer 123'},
+            )
+            with self.assertRaises(UltraClientException) as ctx:
+                provider._post(path, json={})
+            self.assertEqual(
+                'No task ID returned for async operation', str(ctx.exception)
+            )
+
+    def test_await_task(self):
+        provider = _get_provider()
+
+        provider._get = Mock(
+            side_effect=[
+                {'code': 'PENDING'},
+                {'code': 'IN_PROCESS'},
+                {
+                    'code': 'COMPLETE',
+                    'message': 'Processing complete',
+                    'resultUri': (f'{self.host}/tasks/task-123/result'),
+                },
+                {'a': 1},
+            ]
+        )
+
+        with patch('octodns_ultra.sleep') as mocked_sleep:
+            resp = provider._await_task('task-123')
+
+        self.assertEqual({'a': 1}, resp)
+        self.assertEqual(2, mocked_sleep.call_count)
+
+    def test_await_task_complete_without_result_uri(self):
+        provider = _get_provider()
+        provider._get = Mock(return_value={'code': 'COMPLETE'})
+
+        self.assertEqual({'code': 'COMPLETE'}, provider._await_task('task-123'))
+        self.assertEqual('COMPLETE', provider._await_task('task-123', False))
+
+    def test_await_task_error(self):
+        provider = _get_provider()
+        provider._get = Mock(
+            return_value={'code': 'ERROR', 'message': 'Task failed'}
+        )
+
+        with self.assertRaises(UltraClientException) as ctx:
+            provider._await_task('task-123')
+
+        self.assertEqual(
+            'Task task-123 failed: Task failed', str(ctx.exception)
+        )
+
+    def test_await_task_unexpected_status(self):
+        provider = _get_provider()
+        provider._get = Mock(return_value={'code': 'QUEUED'})
+
+        with self.assertRaises(UltraClientException) as ctx:
+            provider._await_task('task-123')
+
+        self.assertEqual(
+            'Task task-123 returned unexpected status: QUEUED',
+            str(ctx.exception),
+        )
+
+    def test_await_task_timeout(self):
+        provider = _get_provider()
+        provider._get = Mock(return_value={'code': 'PENDING'})
+
+        with (
+            patch(
+                'octodns_ultra.monotonic', side_effect=[0, provider._timeout]
+            ),
+            patch('octodns_ultra.sleep') as mocked_sleep,
+        ):
+            with self.assertRaises(UltraClientException) as ctx:
+                provider._await_task('task-123')
+
+        self.assertEqual(
+            f'Task task-123 did not complete within {provider._timeout} seconds',
+            str(ctx.exception),
+        )
+        mocked_sleep.assert_not_called()
 
     def test_zone_records(self):
         provider = _get_provider()
