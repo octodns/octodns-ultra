@@ -174,6 +174,7 @@ class UltraProvider(BaseProvider):
         password,
         timeout=TIMEOUT,
         valimail=False,
+        dnssec=None,
         *args,
         **kwargs,
     ):
@@ -200,6 +201,7 @@ class UltraProvider(BaseProvider):
         self._access_token: str | None = None
         self._timeout = timeout
         self._valimail = valimail
+        self._dnssec: bool | None = dnssec
 
         self._zones = None
         self._zone_records = {}
@@ -229,7 +231,10 @@ class UltraProvider(BaseProvider):
             for zone in zones:
                 self._zones[zone['properties']['name']] = {
                     'name': zone['properties']['name'],
-                    'valimailMonitor': zone['properties']['valimailMonitor'],
+                    'valimailMonitor': zone['properties'].get(
+                        'valimailMonitor'
+                    ),
+                    'dnssecStatus': zone['properties'].get('dnssecStatus'),
                 }
 
         return self._zones
@@ -360,31 +365,85 @@ class UltraProvider(BaseProvider):
         return record._type == 'TXT' and record.name.lower() == '_dmarc'
 
     def _plan_meta(self, existing, desired, changes):
+        '''
+        Plan meta changes for a zone.
+        '''
+
+        meta_changes: dict = {}
+
         zone_name = desired.name
         if zone_name not in self.list_zones():
             return None
 
-        current_valimail_monitor = self.zones.get(zone_name, {}).get(
-            'valimailMonitor'
+        if valimail_monitor := self._evaluate_zone_property_changes(
+            zone_name, 'valimailMonitor', self._valimail
+        ):
+            meta_changes['valimailMonitor'] = valimail_monitor
+
+        if self._dnssec is not None and (
+            dnssec_status := self._evaluate_zone_property_changes(
+                zone_name,
+                'dnssecStatus',
+                "SIGNED" if self._dnssec else "UNSIGNED",
+            )
+        ):
+            meta_changes['dnssecStatus'] = dnssec_status
+
+        return meta_changes if meta_changes else None
+
+    def _evaluate_zone_property_changes(
+        self, zone_name: str, property_name: str, desired: str | bool | int
+    ) -> dict | None:
+        '''
+        Evaluate if a zone property has changed and return a dictionary with the current and desired values if they differ, otherwise return None.
+        '''
+
+        current_value: str | bool | int = self.zones.get(zone_name, {}).get(
+            property_name
         )
-        desired_valimail_monitor = bool(self._valimail)
-        if current_valimail_monitor == desired_valimail_monitor:
+
+        if current_value != desired:
+            self.log.info(
+                '_evaluate_zone_property_changes: %s change detected, current=%s, desired=%s',
+                property_name,
+                current_value,
+                desired,
+            )
+            return {'current': current_value, 'desired': desired}
+        else:
+            self.log.debug(
+                '_evaluate_zone_property_changes: %s no change, current=%s, desired=%s',
+                property_name,
+                current_value,
+                desired,
+            )
             return None
 
-        return {
-            'valimailMonitor': {
-                'current': current_valimail_monitor,
-                'desired': desired_valimail_monitor,
-            }
-        }
+    def _apply_valimail_monitor(
+        self, zone_name: str, valimail_monitor: bool
+    ) -> None:
+        '''
+        Enable or disable Valimail monitoring for a zone.
+        '''
 
-    def _update_zone_valimail_monitor(self, zone_name, valimail_monitor):
         self._patch(
             f'/zones/{zone_name}',
             json={
                 'primaryCreateInfo': {'valimailMonitor': bool(valimail_monitor)}
             },
         )
+
+    def _apply_dnssec(self, zone_name: str, enable: bool) -> None:
+        '''
+        Enable or disable DNSSEC for a zone.
+        '''
+
+        self.log.info('_apply_dnssec: zone=%s, enable=%s', zone_name, enable)
+
+        if enable:
+            self._post(f'/zones/{zone_name}/dnssec', json={})
+        else:
+            self._delete(f'/zones/{zone_name}/dnssec', json_response=False)
 
     def populate(self, zone, target=False, lenient=False):
         self.log.debug(
@@ -476,7 +535,44 @@ class UltraProvider(BaseProvider):
 
         return super()._include_change(change)
 
+    def _create_zone(self, zone_name: str):
+        '''
+        Create a new zone in UltraDNS if it does not already exist.
+        '''
+
+        self.log.info('_create_zone: zone=%s', zone_name)
+
+        data: dict = {
+            'properties': {
+                'name': zone_name,
+                'accountName': self._account,
+                'type': 'PRIMARY',
+            },
+            'primaryCreateInfo': {
+                'createType': 'NEW',
+                'valimailMonitor': self._valimail,
+            },
+        }
+
+        self._post('/zones', json=data)
+
+        if self._dnssec:
+            self._apply_dnssec(zone_name, True)
+
+        dnssec_status = None
+        if self._dnssec is not None:
+            dnssec_status = 'SIGNED' if self._dnssec else 'UNSIGNED'
+
+        self.zones[zone_name] = {
+            'name': zone_name,
+            'valimailMonitor': self._valimail,
+            'dnssecStatus': dnssec_status,
+        }
+
+        self._zone_records[zone_name] = {}
+
     def _apply(self, plan):
+
         desired = plan.desired
         changes = plan.changes
         self.log.debug(
@@ -487,27 +583,21 @@ class UltraProvider(BaseProvider):
         created = False
         if name not in self.list_zones():
             self.log.debug('_apply:   no matching zone, creating')
-            data = {
-                'properties': {
-                    'name': name,
-                    'accountName': self._account,
-                    'type': 'PRIMARY',
-                },
-                'primaryCreateInfo': {
-                    'createType': 'NEW',
-                    'valimailMonitor': self._valimail,
-                },
-            }
-            self._post('/zones', json=data)
-            self.zones[name] = {'name': name, 'valimailMonitor': self._valimail}
-            self._zone_records[name] = {}
+
+            self._create_zone(name)
+
             changes = self._force_root_ns_update(changes)
             created = True
 
         meta = getattr(plan, 'meta', None)
         valimail_meta = meta.get('valimailMonitor') if meta else None
         if not created and valimail_meta:
-            self._update_zone_valimail_monitor(name, valimail_meta['desired'])
+            self._apply_valimail_monitor(name, valimail_meta['desired'])
+
+        dnssec_meta = meta.get('dnssecStatus') if meta else None
+        if self._dnssec is not None and not created and dnssec_meta:
+            desired_dnssec = dnssec_meta.get('desired')
+            self._apply_dnssec(name, desired_dnssec == 'SIGNED')
 
         for change in changes:
             class_name = change.__class__.__name__

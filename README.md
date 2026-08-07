@@ -1,6 +1,6 @@
-## Ultra DNS provider for octoDNS
+## UltraDNS provider for octoDNS
 
-An [octoDNS](https://github.com/octodns/octodns/) provider that targets [Ultra DNS](https://vercara.com/authoritative-dns).
+An [octoDNS](https://github.com/octodns/octodns/) provider that targets [UltraDNS](https://vercara.com/authoritative-dns).
 
 ### Installation
 
@@ -18,8 +18,8 @@ Pinning specific versions or SHAs is recommended to avoid unplanned upgrades.
 
 ```
 # Start with the latest versions and don't just copy what's here
-octodns==0.9.14
-octodns-ultra==0.0.1
+octodns==0.21.1
+octodns-ultra==1.1.3
 ```
 
 ##### SHAs
@@ -44,14 +44,15 @@ providers:
     password: env/ULTRA_PASSWORD
     # Valimail enabled on created zones (optional, default=False)
     # valimail: true
+    # Enable UltraDNS managed DNSSEC (optional, default=None)
+    # dnssec: true
 ```
 
 ### Support Information
 
 #### API Version
 
-Targets the UltraDNS v3 REST API. Zone list/create use `/v3`; auth and rrsets
-use unversioned paths. No config changes from v2.
+Targets the UltraDNS REST API. [Documentation can be found here](https://docs.ultradns.com/Content/REST%20API/Content/REST%20API/What's%20New.htm).
 
 #### Records
 
@@ -64,6 +65,54 @@ UltraProvider supports full root NS record management.
 #### Dynamic
 
 UltraProvider does not support dynamic records.
+
+#### Provider Specific Meta
+
+##### Valimail Monitor
+
+Valimail monitor is an UltraDNS feature that automates the creation of email related DNS records. If enabled, octoDNS will ignore the records that the feature automatically adds to the domain.
+
+More information on Valimail Monitor can be found in the [UltraDNS documentation](https://docs.ultradns.com/Content/REST%20API/Content/REST%20API/Valimail%20Monitor.htm).
+
+##### DNSSEC
+
+> [!IMPORTANT]
+> By default DNSSEC is set to "None", meaning the provider will ignore this setting and maintain current state. Set to "true" or "false" to have the provider manage DNSSEC status.
+
+DNSSEC in UltraDNS is a zone level toggle. Enabling it will create UltraDNS managed DNSSEC related records such as KSK, ZSK, DNSKEY and DS.
+
+More information on UltraDNS's DNSSEC implementation can be found in the [UltraDNS documentation](https://docs.ultradns.com/Content/REST%20API/Content/REST%20API/Zone%20DNSSEC%20APIs.htm).
+
+To have some zones DNSSEC enabled and others not, the recommended implementation is to have two separate providers configured, eg:
+
+
+```yaml
+providers:
+  ultra:
+    class: octodns_ultra.UltraProvider
+    account: env/ULTRA_ACCOUNT
+    username: env/ULTRA_USERNAME
+    password: env/ULTRA_PASSWORD
+  ultra_dnssec:
+    class: octodns_ultra.UltraProvider
+    account: env/ULTRA_ACCOUNT
+    username: env/ULTRA_USERNAME
+    password: env/ULTRA_PASSWORD
+    dnssec: true
+
+zones:
+  dnssec-zone.net.:
+    sources:
+      - config
+    targets:
+      - ultra_dnssec
+
+  no-dnssec-zone.net.:
+    sources:
+      - config
+    targets:
+      - ultra
+```
 
 ### Development
 

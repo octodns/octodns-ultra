@@ -15,10 +15,10 @@ This repository contains the UltraDNS provider for octoDNS. It enables planning,
 
 ### Key Components
 
-- **Provider Class**: [UltraProvider](file:///home/ross/octodns/octodns-ultra/octodns_ultra/__init__.py#L48-L550) (defined in [octodns_ultra/__init__.py](file:///home/ross/octodns/octodns-ultra/octodns_ultra/__init__.py)). This is the core provider implementing record and zone synchronization.
-- **REST Client & Authentication**: The provider handles token authentication natively by logging in to `/v2/authorization/token` with `username` and `password` to obtain a Bearer token, which it caches in its request headers. It targets the base URI `https://restapi.ultradns.com`.
+- **Provider Class**: [UltraProvider](octodns_ultra/__init__.py#L48-L550) (defined in [octodns_ultra/__init__.py](octodns_ultra/__init__.py)). This is the core provider implementing record and zone synchronization.
+- **REST Client & Authentication**: The provider handles token authentication natively by logging in to `/authorization/token` with `username` and `password` to obtain a Bearer token, which it caches in its request headers. It targets the base URI `https://api.ultradns.com`.
 - **Special Conditions**:
-  - [UltraNoZonesExistException](file:///home/ross/octodns/octodns-ultra/octodns_ultra/__init__.py#L28-L37): Handles cases where no zones are defined under the account, preventing API error codes (70002) from breaking standard sync runs.
+  - [UltraNoZonesExistException](octodns_ultra/__init__.py#L28-L37): Handles cases where no zones are defined under the account, preventing API error codes (70002) from breaking standard sync runs.
 
 ### Key Workflows & Features
 
@@ -29,6 +29,8 @@ This repository contains the UltraDNS provider for octoDNS. It enables planning,
 5. **Dynamic Routing**: Not supported (`SUPPORTS_DYNAMIC=False`, `SUPPORTS_GEO=False`).
 6. **Dynamic Subnets**: Not supported (`SUPPORTS_DYNAMIC_SUBNETS=False`).
 7. **Pool Value Status**: Not supported (`SUPPORTS_POOL_VALUE_STATUS=False`).
+8. **Valimail Monitor**: Enabled via provider config.
+9. **DNSSEC**: Enabled via provider config.
 
 ## Development & Testing
 
@@ -38,5 +40,5 @@ This repository contains the UltraDNS provider for octoDNS. It enables planning,
 
 ## Key Constraints & Behaviors
 
-- **Python Version**: Targets Python `>=3.9`.
+- **Python Version**: Targets Python `>=3.10`.
 - **Formatting**: Code formatting is enforced via `black` (version `>=26.0.0,<27.0.0`) and `isort`.
