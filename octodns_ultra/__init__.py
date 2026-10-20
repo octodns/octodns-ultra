@@ -506,6 +506,22 @@ class UltraProvider(BaseProvider):
         )
         return exists
 
+    def _process_desired_zone(self, desired):
+        for record in list(desired.records):
+            name = record.name
+            labels = name.split('.')
+            if any('*' in label for label in labels[1:]) or (
+                '*' in labels[0] and labels[0] != '*'
+            ):
+                msg = (
+                    f'{record.fqdn} is not supported by UltraDNS, "*" is only allowed as the '
+                    'entire leftmost label'
+                )
+                self.supports_warn_or_except(msg, 'omitting record')
+                desired.remove_record(record)
+
+        return super()._process_desired_zone(desired)
+
     def _force_root_ns_update(self, changes):
         '''
         Changes any 'Create' changetype for a root NS record to an 'Update'

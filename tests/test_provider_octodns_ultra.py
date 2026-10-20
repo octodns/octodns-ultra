@@ -12,6 +12,7 @@ from requests import HTTPError
 from requests_mock import ANY
 from requests_mock import mock as requests_mock
 
+from octodns.provider import SupportsException
 from octodns.provider.yaml import YamlProvider
 from octodns.record import Record
 from octodns.zone import Zone
@@ -1185,3 +1186,37 @@ class TestUltraProvider(TestCase):
         )
         self.assertEqual(1, provider._request.call_count)
         self.assertIsNone(provider.zones['unit.tests.']['dnssecStatus'])
+
+    def test_wildcard_name_validation(self):
+        valid = ['*', '*.sub', 'a.b', 'sub.a']
+        invalid = ['*abc', '*abc.sub', 'hello.*.test', 'a*.sub', 'sub.*']
+
+        def desired_zone(names):
+            zone = Zone('unit.tests.', [])
+            for name in names:
+                zone.add_record(
+                    Record.new(
+                        zone,
+                        name,
+                        {'type': 'A', 'ttl': 300, 'value': '1.2.3.4'},
+                    ),
+                    lenient=True,
+                )
+            return zone
+
+        # Non-strict: invalid records are dropped
+        provider = _get_provider()
+        processed = provider._process_desired_zone(
+            desired_zone(valid + invalid)
+        )
+        self.assertEqual(
+            sorted(valid), sorted(r.name for r in processed.records)
+        )
+
+        # Strict: invalid records raise
+        strict = UltraProvider('test', 'testacct', 'user', 'pass')
+        for name in invalid:
+            with self.assertRaises(SupportsException) as ctx:
+                strict._process_desired_zone(desired_zone([name]))
+            self.assertIn('leftmost label', str(ctx.exception))
+        strict._process_desired_zone(desired_zone(valid))
