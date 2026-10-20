@@ -514,7 +514,7 @@ class UltraProvider(BaseProvider):
                 '*' in labels[0] and labels[0] != '*'
             ):
                 msg = (
-                    f'{record.fqdn} is invalid, "*" is only allowed as the '
+                    f'{record.fqdn} is not supported by UltraDNS, "*" is only allowed as the '
                     'entire leftmost label'
                 )
                 self.supports_warn_or_except(msg, 'omitting record')
