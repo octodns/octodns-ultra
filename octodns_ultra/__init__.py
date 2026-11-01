@@ -74,6 +74,7 @@ class UltraProvider(BaseProvider):
     RRSET_REQUEST_LIMIT = 1000
 
     ULTRA_API_BASE_URL = 'https://api.ultradns.com'
+    ULTRA_TEST_API_BASE_URL = 'https://test-api.ultradns.com'
 
     def _request(
         self,
@@ -92,7 +93,7 @@ class UltraProvider(BaseProvider):
 
         self.log.debug('_request: method=%s, path=%s', method, path)
 
-        url = f'{self.ULTRA_API_BASE_URL}{path}'
+        url = f'{self._api_base_url}{path}'
         resp = self._sess.request(
             method,
             url,
@@ -175,6 +176,7 @@ class UltraProvider(BaseProvider):
         timeout=TIMEOUT,
         valimail=False,
         dnssec=None,
+        use_test=False,
         *args,
         **kwargs,
     ):
@@ -205,6 +207,11 @@ class UltraProvider(BaseProvider):
 
         self._zones = None
         self._zone_records = {}
+
+        if use_test:
+            self._api_base_url = self.ULTRA_TEST_API_BASE_URL
+        else:
+            self._api_base_url = self.ULTRA_API_BASE_URL
 
     @property
     def zones(self):
