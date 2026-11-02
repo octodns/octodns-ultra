@@ -135,20 +135,20 @@ providers:
     password: env/ULTRA_PASSWORD
     use_test: true
 zones:
-  prodonlyzone.co.uk:
+  prodonlyzone.co.uk.:
     sources:
       - config
     targets:
       - ultra
-  testonlyzone.com.au:
+  testonlyzone.com.au.:
     sources:
       - config
-    target:
+    targets:
       - ultra_test
-  bothprodandtest.fr:
+  bothprodandtest.fr.:
     sources:
       - config
-    target:
+    targets:
       - ultra
       - ultra_test
 ```
