@@ -46,6 +46,8 @@ providers:
     # valimail: true
     # Enable UltraDNS managed DNSSEC (optional, default=None)
     # dnssec: true
+    # Use the UltraDNS test environment (optional, default=False)
+    # use_test: false
 ```
 
 ### Support Information
@@ -113,6 +115,44 @@ zones:
     targets:
       - ultra
 ```
+
+##### Test Environment
+UltraDNS maintains a test environment which is regularly replicated from production. It gives users the ability to test changes via the API/Portal without making changes to served DNS. More details can be found in the [Test Environment FAQs](https://dns.ultraproducts.support/hc/en-us/articles/4409697714843-Test-Environment-FAQ).
+
+Example configuration:
+
+```yaml
+providers:
+  ultra:
+    class: octodns_ultra.UltraProvider
+    account: env/ULTRA_ACCOUNT
+    username: env/ULTRA_USERNAME
+    password: env/ULTRA_PASSWORD
+  ultra_test:
+    class: octodns_ultra.UltraProvider
+    account: env/ULTRA_ACCOUNT
+    username: env/ULTRA_USERNAME
+    password: env/ULTRA_PASSWORD
+    use_test: true
+zones:
+  prodonlyzone.co.uk.:
+    sources:
+      - config
+    targets:
+      - ultra
+  testonlyzone.com.au.:
+    sources:
+      - config
+    targets:
+      - ultra_test
+  bothprodandtest.fr.:
+    sources:
+      - config
+    targets:
+      - ultra
+      - ultra_test
+```
+
 
 ### Development
 

@@ -30,7 +30,7 @@ def _get_provider():
 
     with requests_mock() as mock:
         mock.post(
-            f'{UltraProvider.ULTRA_API_BASE_URL}/authorization/token',
+            f'{provider._api_base_url}/authorization/token',
             status_code=200,
             text='{"token type": "Bearer", "refresh_token": "abc", '
             '"access_token":"123", "expires_in": "3600"}',
@@ -42,7 +42,6 @@ def _get_provider():
 
 class TestUltraProvider(TestCase):
     expected = Zone('unit.tests.', [])
-    host = UltraProvider.ULTRA_API_BASE_URL
     empty_body = [{"errorCode": 70002, "errorMessage": "Data not found."}]
 
     expected = Zone('unit.tests.', [])
@@ -50,6 +49,35 @@ class TestUltraProvider(TestCase):
         'test', join(dirname(__file__), 'config'), escaped_semicolons=False
     )
     source.populate(expected)
+
+    def setUp(self):
+        provider = UltraProvider('test', 'testacct', 'user', 'pass')
+        self.host = provider._api_base_url
+
+    def test_use_test_changes_base_url(self):
+        for use_test, base_url in (
+            (False, 'https://api.ultradns.com'),
+            (True, 'https://test-api.ultradns.com'),
+        ):
+            with self.subTest(use_test=use_test):
+                provider = UltraProvider(
+                    'test', 'account', 'user', 'pass', use_test=use_test
+                )
+                self.assertEqual(base_url, provider._api_base_url)
+
+                with requests_mock() as mock:
+                    mock.post(
+                        f'{base_url}/authorization/token',
+                        json={'access_token': '123'},
+                    )
+                    mock.get(f'{base_url}/foo', json={})
+
+                    provider._get('/foo')
+
+                    self.assertEqual(
+                        [f'{base_url}/authorization/token', f'{base_url}/foo'],
+                        [request.url for request in mock.request_history],
+                    )
 
     def test_login(self):
         path = '/authorization/token'
