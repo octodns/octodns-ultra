@@ -4,6 +4,7 @@
 
 from collections import defaultdict
 from logging import getLogger
+from time import sleep
 
 from requests import Session
 from requests.exceptions import HTTPError
@@ -94,15 +95,27 @@ class UltraProvider(BaseProvider):
         self.log.debug('_request: method=%s, path=%s', method, path)
 
         url = f'{self._api_base_url}{path}'
-        resp = self._sess.request(
-            method,
-            url,
-            params=params,
-            data=data,
-            json=json,
-            timeout=self._timeout,
-        )
-        self.log.debug('_request:   status=%d', resp.status_code)
+        retries = 0
+        while True:
+            resp = self._sess.request(
+                method,
+                url,
+                params=params,
+                data=data,
+                json=json,
+                timeout=self._timeout,
+            )
+            self.log.debug('_request:   status=%d', resp.status_code)
+            if resp.status_code != 429:
+                break
+            if retries >= self._max_retries:
+                resp.raise_for_status()
+            delay = self._retry_backoff * (2**retries)
+            self.log.warning(
+                '_request: rate limited, retrying in %s seconds', delay
+            )
+            sleep(delay)
+            retries += 1
 
         if resp.status_code == 401:
             raise UltraClientUnauthorized()
@@ -178,8 +191,17 @@ class UltraProvider(BaseProvider):
         dnssec=None,
         use_test=False,
         *args,
+        max_retries=5,
+        retry_backoff=1,
         **kwargs,
     ):
+        if (
+            isinstance(max_retries, bool)
+            or not isinstance(max_retries, int)
+            or max_retries < 0
+        ):
+            raise ValueError('max_retries must be a non-negative integer')
+
         self.log = getLogger(f'UltraProvider[{id}]')
         self.log.debug(
             '__init__: id=%s, account=%s, username=%s, password=***, valimail=%s',
@@ -202,6 +224,8 @@ class UltraProvider(BaseProvider):
         self._password: str = password
         self._access_token: str | None = None
         self._timeout = timeout
+        self._max_retries = max_retries
+        self._retry_backoff = retry_backoff
         self._valimail = valimail
         self._dnssec: bool | None = dnssec
 
