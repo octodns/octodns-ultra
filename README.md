@@ -48,6 +48,10 @@ providers:
     # dnssec: true
     # Use the UltraDNS test environment (optional, default=False)
     # use_test: false
+    # Non-negative integer retries for HTTP 429 (optional, default=5; 0 disables retries)
+    # max_retries: 5
+    # Initial retry delay in seconds, doubled after each retry (optional, default=1)
+    # retry_backoff: 1
 ```
 
 ### Support Information

@@ -5,7 +5,7 @@
 from json import load as json_load
 from os.path import dirname, join
 from unittest import TestCase
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 from urllib.parse import parse_qs
 
 from requests import HTTPError
@@ -130,6 +130,93 @@ class TestUltraProvider(TestCase):
             self.assertEqual(
                 parse_qs(mock.request_history[0].text),
                 parse_qs(expected_payload),
+            )
+
+    @patch('octodns_ultra.sleep')
+    def test_rate_limit_retry(self, sleep):
+        provider = _get_provider()
+        with requests_mock() as mock:
+            mock.get(
+                f'{self.host}/foo',
+                [
+                    {'status_code': 429, 'text': 'Rate limited'},
+                    {'status_code': 200, 'json': {'ok': True}},
+                ],
+            )
+            self.assertEqual({'ok': True}, provider._get('/foo'))
+            self.assertEqual(2, mock.call_count)
+            sleep.assert_called_once_with(1)
+
+    def test_invalid_max_retries(self):
+        for value in (-1, 1.5, float('nan'), float('inf'), '5', None, True):
+            with self.subTest(max_retries=value):
+                with self.assertRaisesRegex(
+                    ValueError, 'max_retries must be a non-negative integer'
+                ):
+                    UltraProvider(
+                        'test', 'account', 'user', 'pass', max_retries=value
+                    )
+
+    @patch('octodns_ultra.sleep')
+    def test_rate_limit_retry_exhausted(self, sleep):
+        for max_retries, delays in ((0, []), (2, [0.25, 0.5])):
+            with self.subTest(max_retries=max_retries):
+                sleep.reset_mock()
+                provider = UltraProvider(
+                    'test',
+                    'account',
+                    'user',
+                    'pass',
+                    max_retries=max_retries,
+                    retry_backoff=0.25,
+                )
+                provider._access_token = '123'
+                with requests_mock() as mock:
+                    mock.get(
+                        f'{self.host}/foo', status_code=429, text='Rate limited'
+                    )
+                    with self.assertRaises(HTTPError) as ctx:
+                        provider._get('/foo')
+                    self.assertEqual(429, ctx.exception.response.status_code)
+                    self.assertEqual(max_retries + 1, mock.call_count)
+                    self.assertEqual(
+                        [call(delay) for delay in delays], sleep.call_args_list
+                    )
+
+    @patch('octodns_ultra.sleep')
+    def test_rate_limit_login_and_write(self, sleep):
+        provider = UltraProvider('test', 'account', 'user', 'pass')
+        with requests_mock() as mock:
+            mock.post(
+                f'{self.host}/authorization/token',
+                [
+                    {'status_code': 429, 'text': 'Rate limited'},
+                    {'status_code': 200, 'json': {'access_token': '123'}},
+                ],
+            )
+            mock.post(
+                f'{self.host}/foo',
+                [
+                    {'status_code': 429, 'text': 'Rate limited'},
+                    {'status_code': 200, 'text': 'done'},
+                ],
+            )
+            self.assertEqual(
+                'done',
+                provider._post('/foo', json={'value': 1}, json_response=False),
+            )
+            self.assertEqual(4, mock.call_count)
+            self.assertEqual([call(1), call(1)], sleep.call_args_list)
+            self.assertEqual(
+                [request.json() for request in mock.request_history[2:]],
+                [{'value': 1}, {'value': 1}],
+            )
+            self.assertEqual(
+                ['Bearer 123', 'Bearer 123'],
+                [
+                    request.headers['Authorization']
+                    for request in mock.request_history[2:]
+                ],
             )
 
     def test_get_zones(self):
